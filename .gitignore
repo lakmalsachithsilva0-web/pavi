@@ -1,0 +1,63 @@
+# ==========================================
+# Laravel Framework Rules
+# ==========================================
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.*.local
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+
+# Cache & Storage Logs
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/testing/.gitignore
+!/storage/framework/views/.gitignore
+!/storage/logs/.gitignore
+
+# ==========================================
+# Public Vendor & Asset Packages
+# ==========================================
+/public/vendor/
+/public/fonts/
+bootstrap-icons.woff
+
+# ==========================================
+# Public Images & Static Uploads
+# ==========================================
+/public/images/ai/
+/public/images/demo/
+/public/images/flags/
+/public/images/front/
+/public/images/icons/
+/public/images/panel/
+/public/images/payment/
+
+# ==========================================
+# OS & Editor System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

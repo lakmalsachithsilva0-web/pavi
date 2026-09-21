@@ -1,0 +1,1904 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+use Detection\Exception\MobileDetectException;
+use Detection\MobileDetect;
+use Fruitcake\LaravelDebugbar\Facades\Debugbar;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
+use InnoShop\Common\Libraries\ApiHook;
+use InnoShop\Common\Libraries\Currency;
+use InnoShop\Common\Libraries\ViewHook;
+use InnoShop\Common\Libraries\Weight;
+use InnoShop\Common\Repositories\CurrencyRepo;
+use InnoShop\Common\Repositories\LocaleRepo;
+use InnoShop\Common\Repositories\SettingRepo;
+use InnoShop\Common\Services\GeoLocationService;
+use InnoShop\Common\Services\ImageService;
+use InnoShop\Common\Services\MediaUrlResolver;
+use InnoShop\Common\Services\StorageService;
+use InnoShop\Common\Support\EntityLinkEnricher;
+use InnoShop\Common\Support\EntityLinkPayload;
+use InnoShop\Common\Support\Registry;
+
+if (! function_exists('load_settings')) {
+    /**
+     * Load all settings from table and set to laravel config
+     *
+     * @return void
+     */
+    function load_settings(): void
+    {
+        if (! installed()) {
+            return;
+        }
+
+        if (config('inno')) {
+            return;
+        }
+
+        $result = SettingRepo::getInstance()->groupedSettings();
+        config(['inno' => $result]);
+    }
+}
+
+if (! function_exists('setting')) {
+    /**
+     * Retrieve the values from the settings table for backend configurations
+     *
+     * @param  $key
+     * @param  null  $default
+     * @return mixed
+     */
+    function setting($key, $default = null): mixed
+    {
+        return config("inno.{$key}", $default);
+    }
+}
+
+if (! function_exists('system_setting')) {
+    /**
+     * Get system settings
+     *
+     * @param  $key
+     * @param  null  $default
+     * @return mixed
+     */
+    function system_setting($key, $default = null): mixed
+    {
+        return setting("system.{$key}", $default);
+    }
+}
+
+if (! function_exists('api_docs_enabled')) {
+    /**
+     * Whether Scribe API documentation routes (/docs, /docs/panel, OpenAPI, Postman) are enabled.
+     * Requires shop to be installed; uses system setting api_docs_enabled (default on when unset).
+     */
+    function api_docs_enabled(): bool
+    {
+        if (! installed()) {
+            return false;
+        }
+
+        $value = system_setting('api_docs_enabled', '1');
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+    }
+}
+
+if (! function_exists('system_setting_locale')) {
+    /**
+     * Get system settings
+     *
+     * @param  $key
+     * @param  null  $default
+     * @return mixed
+     */
+    function system_setting_locale($key, $default = null): mixed
+    {
+        $localeCode = front_locale_code();
+        $value      = setting("system.{$key}.$localeCode");
+
+        if (! is_null($value)) {
+            return $value;
+        }
+
+        $fallbackCode = setting_locale_code();
+
+        if ($fallbackCode !== $localeCode) {
+            $value = setting("system.{$key}.$fallbackCode");
+            if (! is_null($value)) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+}
+
+if (! function_exists('front_store_name')) {
+    /**
+     * Storefront brand name per locale (contact, copyright, logo alt — not SEO meta_title).
+     */
+    function front_store_name(): string
+    {
+        $name = system_setting_locale('store_name', '');
+        if (! is_string($name)) {
+            $name = '';
+        }
+        $name = trim(strip_tags($name));
+
+        return $name !== '' ? $name : (string) config('app.name', 'InnoShop');
+    }
+}
+
+if (! function_exists('front_store_description')) {
+    /**
+     * Storefront company introduction per locale (footer About section).
+     * Falls back to meta_description for backward compatibility when store_description is empty.
+     */
+    function front_store_description(): string
+    {
+        $description = system_setting_locale('store_description', '');
+        if (! is_string($description)) {
+            $description = '';
+        }
+        $description = trim($description);
+
+        if ($description !== '') {
+            return $description;
+        }
+
+        // Backward compatibility: fall back to meta_description when store_description is empty.
+        $fallback = system_setting_locale('meta_description', '');
+
+        return is_string($fallback) ? trim($fallback) : '';
+    }
+}
+
+if (! function_exists('auth_method')) {
+    /**
+     * Get authentication method setting
+     * Returns: 'email_only', 'phone_only', or 'both'
+     *
+     * @return string
+     */
+    function auth_method(): string
+    {
+        return system_setting('auth_method', 'email_only');
+    }
+}
+
+if (! function_exists('locale_image')) {
+    /**
+     * Get locale image
+     *
+     * @param  string  $code
+     * @return string
+     * @throws Exception
+     */
+    function locale_image(string $code): string
+    {
+        $locale = locales()->where('code', $code)->first();
+
+        return $locale ? $locale->image : '';
+    }
+}
+
+if (! function_exists('locale_name')) {
+    /**
+     * Get locale name by code
+     *
+     * @param  string  $code
+     * @return string
+     * @throws Exception
+     */
+    function locale_name(string $code): string
+    {
+        $locale = locales()->where('code', $code)->first();
+
+        return $locale ? $locale->name : $code;
+    }
+}
+
+if (! function_exists('is_secure')) {
+    /**
+     * Check if current env is https
+     *
+     * @return bool
+     */
+    function is_secure(): bool
+    {
+        if (! empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+            return true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+            return true;
+        } elseif (! empty($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off') {
+            return true;
+        } elseif (isset($_SERVER['SERVER_PORT']) && intval($_SERVER['SERVER_PORT']) === 443) {
+            return true;
+        } elseif (isset($_SERVER['REQUEST_SCHEME']) && strtolower($_SERVER['REQUEST_SCHEME']) === 'https') {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('is_mobile')) {
+    /**
+     * Check if current is mobile by user agent.
+     *
+     * @return bool
+     */
+    function is_mobile(): bool
+    {
+        try {
+            return (new MobileDetect)->isMobile();
+        } catch (MobileDetectException $e) {
+            return false;
+        }
+    }
+}
+
+if (! function_exists('is_wechat_official')) {
+    /**
+     * Check if current is WeChat official by user agent.
+     *
+     * @return bool
+     */
+    function is_wechat_official(): bool
+    {
+        $userAgent = request()->userAgent();
+        if (str_contains($userAgent, 'MicroMessenger')) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('is_wechat_mini')) {
+    /**
+     * Check if current is WeChat official by user agent.
+     *
+     * @return bool
+     */
+    function is_wechat_mini(): bool
+    {
+        if (request()->header('platform') == 'miniprogram') {
+            return true;
+        }
+        $userAgent = request()->userAgent();
+        if (str_contains($userAgent, 'wxwork') || str_contains($userAgent, 'wxlite') || str_contains($userAgent, 'miniprogram')) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('is_app')) {
+    /**
+     * Check if current is APP by request.
+     *
+     * @return bool
+     */
+    function is_app(): bool
+    {
+        return (bool) request()->header('from_app', false);
+    }
+}
+
+if (! function_exists('has_install_lock')) {
+    /**
+     * Check install lockfile.
+     *
+     * @return bool
+     */
+    function has_install_lock(): bool
+    {
+        // The test env runs against a fully migrated database, so treat it as
+        // installed. Without this, FrontServiceProvider/PanelServiceProvider
+        // skip route registration and any feature test that hits a front/panel
+        // route 404s - even though the routes exist in the codebase.
+        if (app()->environment('testing')) {
+            return true;
+        }
+
+        return file_exists(storage_path('installed'));
+    }
+}
+
+if (! function_exists('installed')) {
+    /**
+     * Check installed by DB connection.
+     *
+     * Result is memoized per-request to avoid repeated information_schema lookups.
+     *
+     * @return bool
+     */
+    function installed(): bool
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        try {
+            $cache = Schema::hasTable('settings') && has_install_lock();
+        } catch (Exception $e) {
+            Log::error($e->getMessage());
+            $cache = false;
+        }
+
+        return $cache;
+    }
+}
+
+if (! function_exists('inno_path')) {
+    /**
+     * Get innopack path
+     *
+     * @param  string  $path
+     * @return string
+     */
+    function inno_path(string $path): string
+    {
+        return base_path("innopacks/{$path}");
+    }
+}
+
+if (! function_exists('current_customer')) {
+    /**
+     * Get current customer.
+     */
+    function current_customer(): mixed
+    {
+        return auth('customer')->user();
+    }
+}
+
+if (! function_exists('current_customer_id')) {
+    /**
+     * Get current customer ID
+     *
+     * @return int
+     */
+    function current_customer_id(): int
+    {
+        $customer = current_customer();
+
+        return $customer->id ?? 0;
+    }
+}
+
+if (! function_exists('token_customer_id')) {
+    /**
+     * Get current customer ID
+     *
+     * @return int
+     */
+    function token_customer_id(): int
+    {
+        return request()->user()->id ?? 0;
+    }
+}
+
+if (! function_exists('token_customer')) {
+    /**
+     * Get current customer ID
+     *
+     * @return mixed
+     */
+    function token_customer(): mixed
+    {
+        return request()->user();
+    }
+}
+
+if (! function_exists('current_guest_id')) {
+    /**
+     * Get guest ID from session ID
+     *
+     * @return string
+     */
+    function current_guest_id(): string
+    {
+        return session()->getId();
+    }
+}
+
+if (! function_exists('locales')) {
+    /**
+     * Get available locales
+     *
+     * @return mixed
+     */
+    function locales(): mixed
+    {
+        try {
+            return LocaleRepo::getInstance()->getActiveList();
+        } catch (Throwable $e) {
+            return collect([]);
+        }
+    }
+}
+
+if (! function_exists('enabled_locale_codes')) {
+    /**
+     * Get available locale codes
+     *
+     * @return mixed
+     * @throws Exception
+     */
+    function enabled_locale_codes(): mixed
+    {
+        return locales()->pluck('code')->toArray();
+    }
+}
+
+if (! function_exists('setting_locale_code')) {
+    /**
+     * Get setting locale code.
+     *
+     * @return string
+     */
+    function setting_locale_code(): string
+    {
+        return system_setting('front_locale', config('app.locale', 'en'));
+    }
+}
+
+if (! function_exists('is_setting_locale')) {
+    /**
+     * Check if setting locale.
+     *
+     * @param  $localeCode
+     * @return string
+     */
+    function is_setting_locale($localeCode): string
+    {
+        return setting_locale_code() == $localeCode;
+    }
+}
+
+if (! function_exists('language_codes')) {
+    /**
+     * Get language package list
+     * @return array
+     */
+    function language_codes(): array
+    {
+        $languageDir = lang_path();
+
+        return array_values(array_diff(scandir($languageDir), ['..', '.', '.DS_Store']));
+    }
+}
+
+if (! function_exists('front_locale_code')) {
+    /**
+     * Get current locale code.
+     *
+     * @return string
+     */
+    function front_locale_code(): string
+    {
+        return session('locale') ?? setting_locale_code();
+    }
+}
+
+if (! function_exists('locale_code')) {
+    /**
+     * Get current locale code.
+     *
+     * @return string
+     * @throws Exception
+     */
+    function locale_code(): string
+    {
+        $configLocale = config('app.locale');
+        if (is_admin()) {
+            $locale = current_admin()->locale ?? $configLocale;
+            if (locales()->contains('code', $locale)) {
+                return $locale;
+            } else {
+                return setting_locale_code();
+            }
+        }
+
+        return session('locale', setting_locale_code());
+    }
+}
+
+if (! function_exists('current_locale')) {
+    /**
+     * Get current locale code.
+     *
+     * @return mixed
+     * @throws Exception
+     */
+    function current_locale(): mixed
+    {
+        return LocaleRepo::getInstance()->builder(['code' => front_locale_code()])->first();
+    }
+}
+
+if (! function_exists('front_locale_direction')) {
+    /**
+     * Get locale direction for frontend.
+     *
+     * @return string
+     */
+    function front_locale_direction(): string
+    {
+        $localeCode = front_locale_code();
+        $rtlCodes   = array_keys(LocaleRepo::getRtlLanguages());
+
+        return in_array($localeCode, $rtlCodes) ? 'rtl' : 'ltr';
+    }
+}
+
+if (! function_exists('front_lang_path_codes')) {
+    /**
+     * Get all panel languages
+     *
+     * @return array
+     */
+    function front_lang_path_codes(): array
+    {
+        $packages = language_codes();
+
+        $panelLangCodes = collect($packages)->filter(function ($code) {
+            return file_exists(lang_path("{$code}/front"));
+        })->toArray();
+
+        return array_values($panelLangCodes);
+    }
+}
+
+if (! function_exists('pure_route_name')) {
+    /**
+     * @return string
+     * @throws Exception
+     */
+    function pure_route_name(): string
+    {
+        $name = request()->route()->getName();
+
+        return str_replace([locale_code().'.front.', 'front.'], '', $name);
+    }
+}
+
+if (! function_exists('front_trans')) {
+    /**
+     * @param  $key
+     * @param  array  $replace
+     * @param  $locale
+     * @return mixed
+     */
+    function front_trans($key = null, array $replace = [], $locale = null): mixed
+    {
+        return trans('front/'.$key, $replace, $locale);
+    }
+}
+
+if (! function_exists('common_trans')) {
+    /**
+     * Get common translation.
+     *
+     * @param  $key
+     * @param  array  $replace
+     * @param  $locale
+     * @return mixed
+     */
+    function common_trans($key = null, array $replace = [], $locale = null): mixed
+    {
+        return trans('common/'.$key, $replace, $locale);
+    }
+}
+
+if (! function_exists('theme_trans')) {
+    /**
+     * @param  $key
+     * @param  string  $theme
+     * @param  array  $replace
+     * @param  null  $locale
+     * @return mixed
+     */
+    function theme_trans($key, string $theme = '', array $replace = [], $locale = null): mixed
+    {
+        if (empty($theme)) {
+            $theme = system_setting('theme', 'default');
+        }
+
+        return trans("theme-$theme::$key", $replace, $locale);
+    }
+}
+
+if (! function_exists('inno_view')) {
+    /**
+     * @param  null  $view
+     * @param  array  $data
+     * @param  array  $mergeData
+     * @return mixed
+     */
+    function inno_view($view = null, array $data = [], array $mergeData = []): mixed
+    {
+        $hook = ViewHook::getInstance()->getHookName(debug_backtrace());
+
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return view($view, $data, $mergeData);
+    }
+}
+
+if (! function_exists('debug_view')) {
+    /**
+     * @param  $params
+     * @return mixed
+     */
+    function debug_view($params): mixed
+    {
+        return view('debug', ['data' => $params]);
+    }
+}
+
+if (! function_exists('create_json_success')) {
+    /**
+     * @param  null  $data
+     * @param  string|null  $message
+     * @return mixed
+     */
+    function create_json_success($data = null, ?string $message = null): mixed
+    {
+        $hook = ApiHook::getInstance()->getHookName(debug_backtrace());
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return json_success($message ?? common_trans('base.saved_success'), $data);
+    }
+}
+
+if (! function_exists('read_json_success')) {
+    /**
+     * @param  null  $data
+     * @return mixed
+     */
+    function read_json_success($data = null): mixed
+    {
+        $hook = ApiHook::getInstance()->getHookName(debug_backtrace());
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return json_success(common_trans('base.read_success'), $data);
+    }
+}
+
+if (! function_exists('update_json_success')) {
+    /**
+     * @param  null  $data
+     * @param  string|null  $message
+     * @return mixed
+     */
+    function update_json_success($data = null, ?string $message = null): mixed
+    {
+        $hook = ApiHook::getInstance()->getHookName(debug_backtrace());
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return json_success($message ?? common_trans('base.updated_success'), $data);
+    }
+}
+
+if (! function_exists('delete_json_success')) {
+    /**
+     * @param  null  $data
+     * @return mixed
+     */
+    function delete_json_success($data = null): mixed
+    {
+        $hook = ApiHook::getInstance()->getHookName(debug_backtrace());
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return json_success(common_trans('base.deleted_success'), $data);
+    }
+}
+
+if (! function_exists('submit_json_success')) {
+    /**
+     * @param  null  $data
+     * @return mixed
+     */
+    function submit_json_success($data = null): mixed
+    {
+        $hook = ApiHook::getInstance()->getHookName(debug_backtrace());
+        if ($hook) {
+            $data = fire_hook_filter($hook, $data);
+        }
+
+        return json_success(common_trans('base.submitted_success'), $data);
+    }
+}
+
+if (! function_exists('json_success')) {
+    /**
+     * @param  $message
+     * @param  $data
+     * @return mixed
+     */
+    function json_success($message, $data = null): mixed
+    {
+        if ($data instanceof Model) {
+            $data = $data->toArray();
+        }
+
+        $json = [
+            'success' => true,
+            'message' => $message,
+            'data'    => $data,
+        ];
+
+        $debugBar = request()->has('bar');
+        if ($debugBar) {
+            return view('panel::debugbar', ['data' => $json]);
+        }
+
+        return response()->json($json);
+    }
+}
+
+if (! function_exists('json_fail')) {
+    /**
+     * @param  $message
+     * @param  $data
+     * @param  int  $code
+     * @return mixed
+     */
+    function json_fail($message, $data = null, int $code = 422): mixed
+    {
+        if ($data instanceof Model) {
+            $data = $data->toArray();
+        }
+
+        $json = [
+            'success' => false,
+            'message' => $message,
+            'data'    => $data,
+        ];
+
+        $debugBar = request()->has('bar');
+        if ($debugBar) {
+            return view('panel::debugbar', ['data' => $json]);
+        }
+
+        return response()->json($json, $code);
+    }
+}
+
+if (! function_exists('storage_url')) {
+    /**
+     * Generate file URL based on current storage driver configuration.
+     *
+     * @param  ?string  $path  Storage key or legacy path
+     * @return string
+     */
+    function storage_url(?string $path): string
+    {
+        return StorageService::getInstance()->url($path);
+    }
+}
+
+if (! function_exists('image_resize')) {
+    /**
+     * Resize image
+     *
+     * @param  ?string  $image
+     * @param  int  $width
+     * @param  int  $height
+     * @param  string|null  $mode  Resize mode: cover, contain, resize, fit, scale, crop, pad
+     * @return string
+     */
+    function image_resize(?string $image = '', int $width = 100, int $height = 100, ?string $mode = null): string
+    {
+        return StorageService::getInstance()->resize($image, $width, $height, $mode);
+    }
+}
+
+if (! function_exists('image_origin')) {
+    /**
+     * Get original image URL. Alias of storage_url().
+     *
+     * @throws Exception
+     */
+    function image_origin($image)
+    {
+        if (empty($image)) {
+            return asset('images/placeholder.png');
+        }
+
+        // "media://{id}" references and absolute URLs are not local filesystem
+        // paths, so the file_exists() guard below would always fail and clobber
+        // them with the placeholder. Resolve them directly via storage_url().
+        if (MediaUrlResolver::isMediaReference($image) || str_starts_with($image, 'http')) {
+            return storage_url($image);
+        }
+
+        if (! file_exists(public_path($image))) {
+            return asset('images/placeholder.png');
+        }
+
+        return storage_url($image);
+    }
+}
+
+if (! function_exists('sub_string')) {
+    /**
+     * @param  $string
+     * @param  int  $length
+     * @param  string  $dot
+     * @return string
+     */
+    function sub_string($string, int $length = 16, string $dot = '...'): string
+    {
+        $string    = (string) $string;
+        $strLength = mb_strlen($string);
+        if ($length <= 0) {
+            return $string;
+        } elseif ($strLength <= $length) {
+            return $string;
+        }
+
+        return mb_substr($string, 0, $length).$dot;
+    }
+}
+
+if (! function_exists('create_directories')) {
+    /**
+     * Create directories recursively
+     *
+     * @param  $directoryPath
+     * @return void
+     */
+    function create_directories($directoryPath): void
+    {
+        $ds   = DIRECTORY_SEPARATOR;
+        $path = '';
+
+        $directoryPath = str_replace(['/', '\\'], $ds, $directoryPath);
+        if (substr($directoryPath, 0, 1) === $ds) {
+            $path = $ds;
+        }
+
+        $directories = explode($ds, $directoryPath);
+        foreach ($directories as $directory) {
+            if ($directory === '') {
+                continue;
+            }
+
+            if ($path === '' || $path === $ds) {
+                $path .= $directory;
+            } else {
+                $path .= $ds.$directory;
+            }
+
+            if (! is_dir($path)) {
+                if (! @mkdir($path, 0755, true) && ! is_dir($path)) {
+                    throw new RuntimeException(sprintf('Directory "%s" was not created', $path));
+                }
+            }
+        }
+    }
+}
+
+if (! function_exists('front_route')) {
+    /**
+     * Get frontend route
+     *
+     * @param  $name
+     * @param  mixed  $parameters
+     * @param  bool  $absolute
+     * @return string
+     * @throws Exception
+     */
+    function front_route($name, mixed $parameters = [], bool $absolute = true): string
+    {
+        try {
+            if (hide_url_locale() || locales()->isEmpty()) {
+                return route('front.'.$name, $parameters, $absolute);
+            }
+
+            return route(front_locale_code().'.front.'.$name, $parameters, $absolute);
+        } catch (Exception $e) {
+            return url('/');
+        }
+    }
+}
+
+if (! function_exists('front_root_route')) {
+    /**
+     * Get frontend route
+     *
+     * @param  $name
+     * @param  mixed  $parameters
+     * @param  bool  $absolute
+     * @return string
+     * @throws Exception
+     */
+    function front_root_route($name, mixed $parameters = [], bool $absolute = true): string
+    {
+        return route('front.'.$name, $parameters, $absolute);
+    }
+}
+
+if (! function_exists('entity_link_normalize')) {
+    /**
+     * InnoLinkPicker: normalize stored link (JSON, legacy product:/category:, custom URL) to a fixed row shape.
+     * Does not hit the database. For label/image/price from DB use {@see entity_link_enrich()} or {@see entity_link_display()}.
+     *
+     * @param  array<string, mixed>|string|null  $stored
+     * @return array{type: string, value: string, entity_label: string, link: string, entity_image: string, entity_price: string}
+     */
+    function entity_link_normalize(array|string|null $stored): array
+    {
+        return EntityLinkPayload::normalize($stored);
+    }
+}
+
+if (! function_exists('entity_link_enrich')) {
+    /**
+     * Fill missing entity_label / entity_image / entity_price on a normalized row (panel + storefront themes).
+     * On the storefront, names follow the same request locale as product pages (middleware sets app + session).
+     *
+     * @param  array{type: string, value: string, entity_label: string, link: string, entity_image: string, entity_price: string}  $row
+     * @return array{type: string, value: string, entity_label: string, link: string, entity_image: string, entity_price: string}
+     */
+    function entity_link_enrich(array $row): array
+    {
+        return EntityLinkEnricher::enrichRow($row);
+    }
+}
+
+if (! function_exists('entity_link_resolve')) {
+    /**
+     * Resolve entity id or slug to a model instance (shared with InnoLinkPicker).
+     *
+     * @param  class-string  $modelClass
+     */
+    function entity_link_resolve(string $modelClass, string $value, array $with = []): ?object
+    {
+        return EntityLinkEnricher::resolveByIdOrSlug($modelClass, $value, $with);
+    }
+}
+
+if (! function_exists('entity_link_display')) {
+    /**
+     * Normalize + DB enrichment + {@see EntityLinkPayload::urlFromRow()} as entity_href (slideshow, menus, Blade).
+     *
+     * @param  array<string, mixed>|string|null  $stored
+     * @return array{type: string, value: string, entity_label: string, link: string, entity_image: string, entity_price: string, entity_href: string}
+     */
+    function entity_link_display(array|string|null $stored): array
+    {
+        return EntityLinkPayload::forDisplay($stored);
+    }
+}
+
+if (! function_exists('entity_link_url')) {
+    /**
+     * Storefront URL only (no DB). Faster than {@see entity_link_display()} when you do not need label/image/price.
+     *
+     * @param  array<string, mixed>|string|null  $stored
+     */
+    function entity_link_url(array|string|null $stored): string
+    {
+        return EntityLinkPayload::urlFromStored($stored);
+    }
+}
+
+if (! function_exists('has_front_route')) {
+    /**
+     * Check frontend route exist.
+     *
+     * @param  $name
+     * @return bool
+     * @throws Exception
+     */
+    function has_front_route($name): bool
+    {
+        if (hide_url_locale() || locales()->isEmpty()) {
+            $route = 'front.'.$name;
+        } else {
+            $route = front_locale_code().'.front.'.$name;
+        }
+
+        return Route::has($route);
+    }
+}
+
+if (! function_exists('account_route')) {
+    /**
+     * Get account route
+     *
+     * @param  $name
+     * @param  mixed  $parameters
+     * @param  bool  $absolute
+     * @return string
+     * @throws Exception
+     */
+    function account_route($name, mixed $parameters = [], bool $absolute = true): string
+    {
+        try {
+            if (hide_url_locale() || locales()->isEmpty()) {
+                return route('front.account.'.$name, $parameters, $absolute);
+            }
+
+            return route(front_locale_code().'.front.account.'.$name, $parameters, $absolute);
+        } catch (Exception $e) {
+            return url('/');
+        }
+    }
+}
+
+if (! function_exists('hide_url_locale')) {
+    /**
+     * @return bool
+     * @throws Exception
+     */
+    function hide_url_locale(): bool
+    {
+        return count(locales()) == 1 && system_setting('hide_url_locale');
+    }
+}
+
+if (! function_exists('cache_key')) {
+    /**
+     * @param  $name
+     * @param  array  $params
+     * @return string
+     */
+    function cache_key($name, array $params = []): string
+    {
+        $params['customer_id'] = current_customer_id();
+        $params['locale_code'] = front_locale_code();
+
+        return $name.'-'.md5(json_encode($params));
+    }
+}
+
+if (! function_exists('equal_route_name')) {
+    /**
+     * Check route is current
+     *
+     * @param  string|array  $routeName
+     * @param  string|null  $prefix  Remove specific prefix from route name
+     * @return bool
+     */
+    function equal_route_name($routeName, ?string $prefix = null): bool
+    {
+        $currentRoute = Route::getCurrentRoute();
+        if (! $currentRoute) {
+            return false;
+        }
+
+        $currentRouteName = $currentRoute->getName();
+        if (! $currentRouteName) {
+            return false;
+        }
+
+        // Default prefix removal (locale code)
+        $defaultPrefix    = front_locale_code().'.';
+        $currentRouteName = str_replace($defaultPrefix, '', $currentRouteName);
+
+        // Remove additional prefix if provided
+        if ($prefix !== null) {
+            $currentRouteName = str_replace($prefix, '', $currentRouteName);
+        }
+
+        if (is_string($routeName)) {
+            return $currentRouteName == $routeName;
+        } elseif (is_array($routeName)) {
+            return in_array($currentRouteName, $routeName);
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('equal_account_route_name')) {
+    /**
+     * Check account route is current
+     * This is a shorthand for equal_route_name() with account prefix
+     *
+     * @param  string|array  $routeName
+     * @return bool
+     */
+    function equal_account_route_name($routeName): bool
+    {
+        return equal_route_name($routeName, 'front.account.');
+    }
+}
+
+if (! function_exists('equal_route_param')) {
+    /**
+     * Check route is current
+     *
+     * @param  $routeName
+     * @param  array  $parameters
+     * @return bool
+     */
+    function equal_route_param($routeName, array $parameters = []): bool
+    {
+        $currentRouteName = Route::getCurrentRoute()->getName();
+        if ($routeName != $currentRouteName) {
+            return false;
+        }
+
+        $currentRouteParameters = Route::getCurrentRoute()->parameters();
+
+        return $parameters == $currentRouteParameters;
+    }
+}
+
+if (! function_exists('equal_url')) {
+    /**
+     * Check url equal current.
+     *
+     * @param  $url
+     * @return bool
+     */
+    function equal_url($url): bool
+    {
+        return url()->current() == $url;
+    }
+}
+
+if (! function_exists('has_debugbar')) {
+    /**
+     * Check debugbar installed or not
+     *
+     * @return bool
+     */
+    function has_debugbar(): bool
+    {
+        return class_exists(Debugbar::class);
+    }
+}
+
+if (! function_exists('currencies')) {
+    /**
+     * @return mixed
+     */
+    function currencies(): mixed
+    {
+        return CurrencyRepo::getInstance()->enabledList();
+    }
+}
+
+if (! function_exists('current_currency')) {
+    /**
+     * @return mixed
+     */
+    function current_currency(): mixed
+    {
+        $currency = currencies()->where('code', current_currency_code())->first();
+        if ($currency) {
+            return $currency;
+        }
+
+        return currencies()->first();
+    }
+}
+
+if (! function_exists('current_currency_code')) {
+    /**
+     * @return string
+     */
+    function current_currency_code(): string
+    {
+        return Session::get('currency') ?? system_setting('currency', 'usd');
+    }
+}
+
+if (! function_exists('setting_currency_code')) {
+    /**
+     * Get setting locale code.
+     *
+     * @return string
+     */
+    function setting_currency_code(): string
+    {
+        return system_setting('currency', 'usd');
+    }
+}
+
+if (! function_exists('currency_format')) {
+    /**
+     * @param  $price
+     * @param  string  $currency
+     * @param  float  $rate
+     * @param  bool  $format
+     * @return string
+     */
+    function currency_format($price, string $currency = '', float $rate = 0, bool $format = true): string
+    {
+        if (! $currency) {
+            $currency = is_admin() ? system_setting('currency') : current_currency_code();
+        }
+
+        return Currency::getInstance()->format($price, $currency, $rate, $format);
+    }
+}
+
+if (! function_exists('default_currency')) {
+    /**
+     * @return mixed
+     */
+    function default_currency(): mixed
+    {
+        return currencies()->where('code', system_setting('currency'))->first();
+    }
+}
+
+if (! function_exists('currency_decimal_place')) {
+    /**
+     * Get the decimal place for a currency.
+     * This is used for rounding calculations to respect currency precision settings.
+     *
+     * @param  string  $currency  Currency code (e.g., 'USD', 'EUR'). If empty, uses current currency.
+     * @return int Decimal places (e.g., 2 for USD, 0 for JPY, 3 for KWD)
+     */
+    function currency_decimal_place(string $currency = ''): int
+    {
+        if (! $currency) {
+            $currency = is_admin() ? system_setting('currency') : current_currency_code();
+        }
+
+        // Use the cached currencies collection for performance
+        $currencyModel = currencies()->where('code', strtolower($currency))->first();
+        if ($currencyModel) {
+            return (int) $currencyModel->decimal_place;
+        }
+
+        return 2;
+    }
+}
+
+if (! function_exists('theme_path')) {
+    /**
+     * Generate an asset path for the application.
+     *
+     * @param  string  $path
+     * @return string
+     */
+    function theme_path(string $path): string
+    {
+        return base_path('themes/'.$path);
+    }
+}
+
+if (! function_exists('should_copy_static_file')) {
+    /**
+     * Check if a static file needs to be copied and copy it if necessary
+     * Used by theme_asset, theme_image and plugin_asset functions
+     *
+     * @param  string  $sourceFile  Source file path
+     * @param  string  $destFile  Destination file path
+     * @return bool True if file exists or was copied successfully
+     */
+    function should_copy_static_file(string $sourceFile, string $destFile): bool
+    {
+        // copy() cannot copy directories - only files
+        if (file_exists($sourceFile) && is_dir($sourceFile)) {
+            return false;
+        }
+
+        $shouldCopy = false;
+
+        // Check if destination file doesn't exist or source file is newer
+        if (! file_exists($destFile)) {
+            $shouldCopy = true;
+        } elseif (file_exists($sourceFile)) {
+            $sourceModTime = filemtime($sourceFile);
+            $destModTime   = filemtime($destFile);
+            if ($sourceModTime > $destModTime) {
+                $shouldCopy = true;
+            }
+        }
+
+        // Copy file if needed
+        if ($shouldCopy && file_exists($sourceFile) && is_file($sourceFile)) {
+            create_directories(dirname($destFile));
+
+            return copy($sourceFile, $destFile);
+        }
+
+        return file_exists($destFile);
+    }
+}
+
+if (! function_exists('theme_asset')) {
+    /**
+     * Generate asset path for the theme, demo code like below:
+     * <link rel="stylesheet" href="{{ theme_asset('swiper-bundle.min.css', 'default') }}">
+     * swiper-bundle.min.css is in /themes/default/public
+     *
+     * @param  string  $path  Asset file path
+     * @param  string  $theme  Theme name (default taken from system settings)
+     * @param  bool|null  $secure  Whether to use HTTPS
+     * @return string URL to the asset
+     * @throws Exception
+     */
+    function theme_asset(string $path, string $theme = '', ?bool $secure = null): string
+    {
+        if (empty($theme)) {
+            $theme = system_setting('theme', 'default');
+        }
+        $originThemePath = "$theme/public/$path";
+        $destThemePath   = "static/themes/$theme/$path";
+
+        $sourceFile = theme_path($originThemePath);
+        $destFile   = public_path($destThemePath);
+
+        should_copy_static_file($sourceFile, $destFile);
+
+        $assetUrl = app('url')->asset($destThemePath, $secure);
+
+        $version   = file_exists($destFile) ? filemtime($destFile) : time();
+        $separator = strpos($assetUrl, '?') !== false ? '&' : '?';
+
+        return $assetUrl.$separator.'v='.$version;
+    }
+}
+
+if (! function_exists('theme_image')) {
+    /**
+     * Generate asset path for the theme, demo code like below:
+     * <link rel="stylesheet" href="{{ theme_image('preview.jpg', 'default') }}">
+     * preview.jpg is in /themes/default/public
+     *
+     * @param  string  $path  Image file path
+     * @param  string  $theme  Theme name (default taken from system settings)
+     * @param  int  $width  Desired width for resizing
+     * @param  int  $height  Desired height for resizing
+     * @param  string  $mode  Resize mode: cover, contain, resize, pad, width-cover, height-cover
+     * @return string URL to the resized image
+     * @throws Exception
+     */
+    function theme_image(string $path, string $theme = '', int $width = 100, int $height = 100, string $mode = 'contain'): string
+    {
+        if (empty($path)) {
+            return (new ImageService(''))->resize($width, $height, $mode);
+        }
+        if (empty($theme)) {
+            $theme = system_setting('theme', 'default');
+        }
+        $originThemePath = "$theme/public/$path";
+        $destThemePath   = "static/themes/$theme/$path";
+
+        $sourceFile = theme_path($originThemePath);
+        $destFile   = public_path($destThemePath);
+
+        $fileExists = should_copy_static_file($sourceFile, $destFile);
+
+        if (! $fileExists) {
+            return (new ImageService(''))->resize($width, $height, $mode);
+        }
+
+        // ImageService will automatically validate and use placeholder if image is invalid
+        return image_resize($destThemePath, $width, $height, $mode);
+    }
+}
+
+if (! function_exists('parse_filters')) {
+    /**
+     * @param  mixed  $params
+     * @return array
+     */
+    function parse_int_filters(mixed $params): array
+    {
+        if (is_array($params)) {
+            return $params;
+        }
+        $filters = explode('|', $params);
+
+        return array_filter($filters, function ($filter) {
+            return (int) ($filter) > 0;
+        });
+    }
+}
+
+if (! function_exists('parse_attr_filters')) {
+    /**
+     * @param  mixed  $params
+     * @return array|array[]
+     * @throws Exception
+     */
+    function parse_attr_filters(mixed $params): array
+    {
+        if (is_array($params)) {
+            return $params;
+        }
+
+        $attributes = explode('|', $params);
+
+        return array_map(function ($item) {
+            $itemArr = explode(':', $item);
+            if (count($itemArr) != 2) {
+                throw new Exception('Invalid attribute parameters!');
+            }
+
+            return [
+                'attr'  => $itemArr[0],
+                'value' => explode(',', $itemArr[1]),
+            ];
+        }, $attributes);
+    }
+}
+
+if (! function_exists('innoshop_version')) {
+    /**
+     * Generate an asset path for the application.
+     *
+     * @return string
+     */
+    function innoshop_version(): string
+    {
+        $default = ucfirst(config('innoshop.edition')).' v'.config('innoshop.version').'('.config('innoshop.build').')';
+
+        return fire_hook_filter('innoshop.version.display', $default);
+    }
+}
+
+if (! function_exists('innoshop_brand_link')) {
+    /**
+     * Get innoshop brand link
+     *
+     * @return string
+     */
+    function innoshop_brand_link(): string
+    {
+        if (is_admin()) {
+            $default = '<a href="https://www.innoshop.com" class="ms-2" target="_blank">InnoShop</a>';
+        } else {
+            $default = 'Powered By <a href="https://www.innoshop.com" class="ms-2" target="_blank">InnoShop</a>';
+        }
+
+        return fire_hook_filter('innoshop.brand.link.display', $default);
+    }
+}
+
+if (! function_exists('to_sql')) {
+    /**
+     * Render SQL by builder object
+     * @param  mixed  $builder
+     * @return string
+     */
+    function to_sql(mixed $builder): string
+    {
+        $sql    = $builder->toSql();
+        $driver = DB::getDriverName();
+        if ($driver == 'mysql') {
+            $sql = str_replace('"', '`', $sql);
+        }
+
+        foreach ($builder->getBindings() as $binding) {
+            $value = is_numeric($binding) ? $binding : "'".$binding."'";
+            $sql   = preg_replace('/\?/', $value, $sql, 1);
+        }
+
+        return $sql;
+    }
+}
+
+if (! function_exists('seller_enabled')) {
+    /**
+     * Get available locales
+     *
+     * @return bool
+     */
+    function seller_enabled(): bool
+    {
+        return class_exists('\InnoShop\Seller\SellerServiceProvider') && env('SELLER_ENABLED', true);
+    }
+}
+
+if (! function_exists('ai_enabled')) {
+    /**
+     * Check if the AI innopack is installed and its views are registered.
+     *
+     * @return bool
+     */
+    function ai_enabled(): bool
+    {
+        static $enabled = null;
+
+        return $enabled ??= view()->exists('aicore::settings._tools');
+    }
+}
+
+if (! function_exists('parsedown')) {
+    /**
+     * @param  string|null  $value
+     * @param  bool|null  $inline
+     * @return Parsedown|string
+     */
+    function parsedown(?string $value = null, ?bool $inline = null): Parsedown|string
+    {
+        $parser = new Parsedown;
+
+        if (! func_num_args()) {
+            return $parser;
+        }
+
+        if (is_null($inline)) {
+            $inline = config('parsedown.inline');
+        }
+
+        if ($inline) {
+            return $parser->line($value);
+        }
+
+        return $parser->text($value);
+    }
+}
+
+if (! function_exists('weight_convert')) {
+    /**
+     * Convert weight from one unit to another
+     *
+     * @param  float  $value  Weight value
+     * @param  string  $fromCode  Source weight unit code
+     * @param  string  $toCode  Target weight unit code
+     * @return float
+     * @throws Exception
+     */
+    function weight_convert(float $value, string $fromCode, string $toCode): float
+    {
+        return Weight::getInstance()->convert($value, $fromCode, $toCode);
+    }
+}
+
+if (! function_exists('weight_format')) {
+    /**
+     * Format weight with unit
+     *
+     * @param  float  $value  Weight value
+     * @param  string  $code  Weight unit code
+     * @return string
+     * @throws Exception
+     */
+    function weight_format(float $value, string $code): string
+    {
+        return Weight::getInstance()->format($value, $code);
+    }
+}
+
+if (! function_exists('ini_size_to_bytes')) {
+    /**
+     * Convert PHP ini size value to bytes
+     *
+     * @param  string  $size  PHP ini size value (e.g. "8M", "2G")
+     * @return int
+     */
+    function ini_size_to_bytes(string $size): int
+    {
+        $unit  = strtoupper(substr($size, -1));
+        $value = (int) substr($size, 0, -1);
+
+        switch ($unit) {
+            case 'K':
+                return $value * 1024;
+            case 'M':
+                return $value * 1024 * 1024;
+            case 'G':
+                return $value * 1024 * 1024 * 1024;
+            default:
+                return (int) $size;
+        }
+    }
+}
+
+if (! function_exists('weight_to_default')) {
+    /**
+     * Convert weight to system default unit
+     *
+     * @param  float  $value  Weight value
+     * @param  string  $fromCode  Source weight unit code
+     * @return float
+     * @throws Exception
+     */
+    function weight_to_default(float $value, string $fromCode): float
+    {
+        return Weight::getInstance()->toDefault($value, $fromCode);
+    }
+}
+
+if (! function_exists('register')) {
+    /**
+     * Register data to registry
+     *
+     * @param  array|string  $key
+     * @param  mixed  $value
+     */
+    function register(array|string $key, mixed $value): void
+    {
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                Registry::set($k, $v);
+            }
+        }
+
+        Registry::set($key, $value);
+    }
+}
+
+if (! function_exists('registry')) {
+    /**
+     * Get data from registry
+     *
+     * @param  string  $key
+     * @param  mixed|null  $default
+     * @return mixed
+     */
+    function registry(string $key, mixed $default = null): mixed
+    {
+        return Registry::get($key, $default);
+    }
+}
+
+if (! function_exists('theme_css')) {
+    /**
+     * Smart theme CSS loading
+     * Priority: Theme compiled CSS > Default frontend compiled CSS
+     *
+     * @param  string  $path  CSS file path (supports 'app', 'bootstrap')
+     * @param  string  $theme  Theme name (default from system settings)
+     * @param  bool|null  $secure  Whether to use HTTPS
+     * @return string CSS file URL
+     */
+    function theme_css(string $path, string $theme = '', ?bool $secure = null): string
+    {
+        if (empty($theme)) {
+            $theme = system_setting('theme', 'default');
+        }
+
+        // Remove possible extensions
+        $path = str_replace(['.scss', '.css'], '', $path);
+
+        // Priority 1: Theme compiled CSS file
+        $themeCssPath = "static/themes/{$theme}/css/{$path}.css";
+        $themeCssFile = public_path($themeCssPath);
+
+        // Priority 2: Default frontend compiled CSS file
+        $defaultCssPath = "build/front/css/{$path}.css";
+        $defaultCssFile = public_path($defaultCssPath);
+
+        if (file_exists($themeCssFile)) {
+            return app('url')->asset($themeCssPath, $secure);
+        } elseif (file_exists($defaultCssFile)) {
+            return app('url')->asset($defaultCssPath, $secure);
+        }
+
+        // If compiled file doesn't exist, return empty string
+        return '';
+    }
+}
+
+if (! function_exists('theme_js')) {
+    /**
+     * Smart theme JS loading
+     * Priority: Theme compiled JS > Default frontend compiled JS
+     *
+     * @param  string  $path  JS file path (supports 'app')
+     * @param  string  $theme  Theme name (default from system settings)
+     * @param  bool|null  $secure  Whether to use HTTPS
+     * @return string JS file URL
+     */
+    function theme_js(string $path, string $theme = '', ?bool $secure = null): string
+    {
+        if (empty($theme)) {
+            $theme = system_setting('theme', 'default');
+        }
+
+        // Remove possible extensions
+        $path = str_replace('.js', '', $path);
+
+        // Priority 1: Theme compiled JS file
+        $themeJsPath = "static/themes/{$theme}/js/{$path}.js";
+        $themeJsFile = public_path($themeJsPath);
+
+        // Priority 2: Default frontend compiled JS file
+        $defaultJsPath = "build/front/js/{$path}.js";
+        $defaultJsFile = public_path($defaultJsPath);
+
+        if (file_exists($themeJsFile)) {
+            return app('url')->asset($themeJsPath, $secure);
+        } elseif (file_exists($defaultJsFile)) {
+            return app('url')->asset($defaultJsPath, $secure);
+        }
+
+        // If compiled file doesn't exist, return empty string
+        return '';
+    }
+}
+
+if (! function_exists('smart_log')) {
+    /**
+     * Smart logging function that respects debug mode and log levels
+     *
+     * This function will log messages based on:
+     * - APP_DEBUG setting (debug/info/warning only log when debug is enabled)
+     * - Log level (error/critical/alert/emergency always log)
+     * - LOG_LEVEL configuration (respects minimum log level)
+     *
+     * @param  string  $level  Log level: debug, info, warning, error, critical, alert, emergency
+     * @param  string  $message  Log message
+     * @param  array  $context  Additional context data
+     * @param  bool  $force  Force logging even if debug is disabled (default: false, auto-determined by level)
+     * @return void
+     */
+    function smart_log(string $level, string $message, array $context = [], ?bool $force = null): void
+    {
+        $level       = strtolower($level);
+        $validLevels = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
+
+        if (! in_array($level, $validLevels)) {
+            $level = 'info';
+        }
+
+        // Determine if we should log based on debug mode
+        $isDebug = config('app.debug', false);
+
+        // Critical levels always log regardless of debug mode
+        $criticalLevels = ['error', 'critical', 'alert', 'emergency'];
+        $shouldLog      = false;
+
+        if ($force === true) {
+            // Force logging
+            $shouldLog = true;
+        } elseif ($force === false) {
+            // Force no logging
+            $shouldLog = false;
+        } elseif (in_array($level, $criticalLevels)) {
+            // Critical levels always log
+            $shouldLog = true;
+        } elseif ($isDebug) {
+            // Non-critical levels only log when debug is enabled
+            $shouldLog = true;
+        }
+
+        if (! $shouldLog) {
+            return;
+        }
+
+        // Check LOG_LEVEL configuration to respect minimum log level
+        $logLevel      = strtolower(config('logging.channels.single.level', 'debug'));
+        $levelPriority = [
+            'debug'     => 0,
+            'info'      => 1,
+            'notice'    => 2,
+            'warning'   => 3,
+            'error'     => 4,
+            'critical'  => 5,
+            'alert'     => 6,
+            'emergency' => 7,
+        ];
+
+        $logLevelPriority     = $levelPriority[$logLevel] ?? 0;
+        $messageLevelPriority = $levelPriority[$level] ?? 0;
+
+        // Only log if message level is >= configured log level
+        if ($messageLevelPriority < $logLevelPriority) {
+            return;
+        }
+
+        // Log the message using Laravel's Log facade
+        Log::{$level}($message, $context);
+    }
+}
+
+if (! function_exists('geo_location')) {
+    /**
+     * Resolve geographic location for an IP address via the system service.
+     * Plugins and views should always use this helper instead of reading
+     * the GeoLite2 mmdb directly — the underlying service handles env override
+     * and storage/plugins fallback automatically.
+     *
+     * @param  string  $ip
+     * @return array{country_code: string, country_name: string, region_code: string, region_name: string, city: string, latitude: ?float, longitude: ?float}
+     */
+    function geo_location(string $ip): array
+    {
+        if ($ip === '' || $ip === '127.0.0.1' || $ip === '::1') {
+            return [
+                'country_code' => '',
+                'country_name' => '',
+                'region_code'  => '',
+                'region_name'  => '',
+                'city'         => '',
+                'latitude'     => null,
+                'longitude'    => null,
+            ];
+        }
+
+        return app(GeoLocationService::class)->getLocation($ip);
+    }
+}
+
+if (! function_exists('geo_location_label')) {
+    /**
+     * Convenience wrapper returning a human-readable "Country Region City" label,
+     * falling back to '-' when nothing was resolved. Useful for tables/lists.
+     *
+     * @param  string  $ip
+     * @return string
+     */
+    function geo_location_label(string $ip): string
+    {
+        if ($ip === '' || $ip === '127.0.0.1' || $ip === '::1') {
+            return '-';
+        }
+
+        $loc   = geo_location($ip);
+        $parts = array_filter([
+            trim((string) $loc['country_name']),
+            trim((string) $loc['region_name']),
+            trim((string) $loc['city']),
+        ]);
+
+        return $parts ? implode(' ', $parts) : '-';
+    }
+}
+
+if (! function_exists('geo_location_lines')) {
+    /**
+     * Return non-empty location parts as an ordered array (country, region).
+     * Empty array when nothing was resolved. Use this when each part should
+     * render on its own line in the view.
+     *
+     * @param  string  $ip
+     * @return string[]
+     */
+    function geo_location_lines(string $ip): array
+    {
+        if ($ip === '' || $ip === '127.0.0.1' || $ip === '::1') {
+            return [];
+        }
+
+        $loc = geo_location($ip);
+
+        return array_values(array_filter([
+            trim((string) $loc['country_name']),
+            trim((string) $loc['region_name']),
+        ]));
+    }
+}

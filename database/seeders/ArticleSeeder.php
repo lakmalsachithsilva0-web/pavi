@@ -1,0 +1,234 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+namespace Database\Seeders;
+
+use InnoShop\Common\Models\Article;
+
+class ArticleSeeder extends BaseSeeder
+{
+    public function run(): void
+    {
+        $items = $this->getArticles();
+        if ($items) {
+            $this->safeTruncate(Article::class);
+            foreach ($items as $item) {
+                Article::query()->create($item);
+            }
+        }
+
+        $items = $this->getArticleTranslations();
+        if ($items) {
+            $this->safeTruncate(Article\Translation::class);
+            foreach ($items as $item) {
+                Article\Translation::query()->create($item);
+            }
+        }
+
+        $items = $this->getArticleTags();
+        if ($items) {
+            $this->safeTruncate(Article\Tag::class);
+            foreach ($items as $item) {
+                Article\Tag::query()->create($item);
+            }
+        }
+    }
+
+    /**
+     * @return array[]
+     */
+    private function getArticles(): array
+    {
+        return [
+            [
+                'id'         => 1,
+                'catalog_id' => 1,
+                'slug'       => 'innoshop-innovative-open-source-ecommerce',
+                'position'   => 0,
+                'viewed'     => 16,
+                'author'     => 'InnoShop',
+                'active'     => 1,
+            ],
+            [
+                'id'         => 2,
+                'catalog_id' => 1,
+                'slug'       => 'new-generation-ecommerce-system',
+                'position'   => 0,
+                'viewed'     => 16,
+                'author'     => 'InnoShop',
+                'active'     => 1,
+            ],
+            [
+                'id'         => 3,
+                'catalog_id' => 2,
+                'slug'       => 'ecommerce-integrated-with-ai',
+                'position'   => 0,
+                'viewed'     => 16,
+                'author'     => null,
+                'active'     => 1,
+            ],
+            [
+                'id'         => 4,
+                'catalog_id' => 2,
+                'slug'       => 'new-version-released',
+                'position'   => 0,
+                'viewed'     => 16,
+                'author'     => 'InnoShop',
+                'active'     => 1,
+            ],
+            [
+                'id'         => 5,
+                'catalog_id' => 1,
+                'slug'       => 'multi-language-ecommerce-guide',
+                'position'   => 0,
+                'viewed'     => 12,
+                'author'     => 'InnoShop',
+                'active'     => 1,
+            ],
+        ];
+    }
+
+    /**
+     * @return array[]
+     */
+    private function getArticleTranslations(): array
+    {
+        return [
+            [
+                'article_id'       => 1,
+                'locale'           => 'zh-cn',
+                'title'            => 'InnoShop - 创新电商，智选未来',
+                'summary'          => 'InnoShop，一个以创新为核心的开源电商平台，致力于提供灵活、可扩展的电商解决方案。我们的产品管理功能全面，包括产品分类、添加、库存及价格管理等，旨在帮助商家轻松管理商品，提升运营效率。',
+                'image'            => 'images/demo/news/1.jpg',
+                'content'          => '欢迎访问 <a href="https://www.innoshop.cn/" target="_blank" rel="noopener">InnoShop 中文官方网站</a> 了解更多信息。',
+                'meta_title'       => 'InnoShop - 创新电商，智选未来',
+                'meta_description' => 'InnoShop - 创新电商，智选未来',
+                'meta_keywords'    => 'InnoShop - 创新电商，智选未来',
+            ],
+            [
+                'article_id'       => 1,
+                'locale'           => 'en',
+                'title'            => 'InnoShop - Innovative ecommerce',
+                'summary'          => 'InnoShop，An open-source e-commerce platform with innovation',
+                'image'            => 'images/demo/news/1.jpg',
+                'content'          => 'This is english test article',
+                'meta_title'       => 'InnoShop - Innovative ecommerce',
+                'meta_description' => 'InnoShop - Innovative ecommerce',
+                'meta_keywords'    => 'InnoShop - Innovative ecommerce',
+            ],
+            [
+                'article_id'       => 2,
+                'locale'           => 'zh-cn',
+                'title'            => '新一代电商系统',
+                'summary'          => 'InnoShop，一个以创新为核心的开源电商平台，致力于提供灵活、可扩展的电商解决方案。我们的产品管理功能全面，包括产品分类、添加、库存及价格管理等，旨在帮助商家轻松管理商品，提升运营效率。',
+                'image'            => 'images/demo/news/2.jpg',
+                'content'          => '欢迎访问 <a href="https://www.innoshop.cn/" target="_blank" rel="noopener">InnoShop 中文官方网站</a> 了解更多信息。',
+                'meta_title'       => 'InnoShop - 创新电商，智选未来',
+                'meta_description' => 'InnoShop - 创新电商，智选未来',
+                'meta_keywords'    => 'InnoShop - 创新电商，智选未来',
+            ],
+            [
+                'article_id'       => 2,
+                'locale'           => 'en',
+                'title'            => 'New generation ecommerce system',
+                'summary'          => 'InnoShop，An open-source e-commerce platform with innovation',
+                'image'            => 'images/demo/news/2.jpg',
+                'content'          => 'This is english test article',
+                'meta_title'       => 'InnoShop - Innovative ecommerce',
+                'meta_description' => 'InnoShop - Innovative ecommerce',
+                'meta_keywords'    => 'InnoShop - Innovative ecommerce',
+            ],
+            [
+                'article_id'       => 3,
+                'locale'           => 'zh-cn',
+                'title'            => '集成AI的电商平台',
+                'summary'          => 'InnoShop，一个以创新为核心的开源电商平台，致力于提供灵活、可扩展的电商解决方案。我们的产品管理功能全面，包括产品分类、添加、库存及价格管理等，旨在帮助商家轻松管理商品，提升运营效率。',
+                'image'            => 'images/demo/news/3.jpg',
+                'content'          => '欢迎访问 <a href="https://www.innoshop.cn/" target="_blank" rel="noopener">InnoShop 中文官方网站</a> 了解更多信息。',
+                'meta_title'       => 'InnoShop - 创新电商，智选未来',
+                'meta_description' => 'InnoShop - 创新电商，智选未来',
+                'meta_keywords'    => 'InnoShop - 创新电商，智选未来',
+            ],
+            [
+                'article_id'       => 3,
+                'locale'           => 'en',
+                'title'            => 'Ecommerce integrated with AI',
+                'summary'          => 'InnoShop，An open-source e-commerce platform with innovation',
+                'image'            => 'images/demo/news/3.jpg',
+                'content'          => 'This is english test article',
+                'meta_title'       => 'InnoShop - Innovative ecommerce',
+                'meta_description' => 'InnoShop - Innovative ecommerce',
+                'meta_keywords'    => 'InnoShop - Innovative ecommerce',
+            ],
+            [
+                'article_id'       => 4,
+                'locale'           => 'zh-cn',
+                'title'            => '新版本发布！',
+                'summary'          => 'InnoShop，一个以创新为核心的开源电商平台，致力于提供灵活、可扩展的电商解决方案。我们的产品管理功能全面，包括产品分类、添加、库存及价格管理等，旨在帮助商家轻松管理商品，提升运营效率。',
+                'image'            => 'images/demo/news/4.jpg',
+                'content'          => '欢迎访问 <a href="https://www.innoshop.cn/" target="_blank" rel="noopener">InnoShop 中文官方网站</a> 了解更多信息。',
+                'meta_title'       => 'InnoShop - 创新电商，智选未来',
+                'meta_description' => 'InnoShop - 创新电商，智选未来',
+                'meta_keywords'    => 'InnoShop - 创新电商，智选未来',
+            ],
+            [
+                'article_id'       => 4,
+                'locale'           => 'en',
+                'title'            => 'New version released!',
+                'summary'          => 'InnoShop，An open-source e-commerce platform with innovation',
+                'image'            => 'images/demo/news/4.jpg',
+                'content'          => 'This is english test article',
+                'meta_title'       => 'InnoShop - Innovative ecommerce',
+                'meta_description' => 'InnoShop - Innovative ecommerce',
+                'meta_keywords'    => 'InnoShop - Innovative ecommerce',
+            ],
+            [
+                'article_id'       => 5,
+                'locale'           => 'zh-cn',
+                'title'            => '多语言电商实践指南',
+                'summary'          => '探索如何利用多语言、多货币功能拓展全球市场，InnoShop 为您提供一站式跨境电商解决方案。',
+                'image'            => 'images/demo/news/1.jpg',
+                'content'          => '<p>全球化电商离不开多语言和多货币支持。InnoShop 原生支持多语言内容管理，让您轻松拓展海外市场。</p>',
+                'meta_title'       => '多语言电商实践指南 - InnoShop',
+                'meta_description' => '多语言电商实践指南',
+                'meta_keywords'    => '多语言, 电商, InnoShop',
+            ],
+            [
+                'article_id'       => 5,
+                'locale'           => 'en',
+                'title'            => 'Multi-Language E-Commerce Guide',
+                'summary'          => 'Explore how multi-language and multi-currency features can expand your global reach with InnoShop.',
+                'image'            => 'images/demo/news/1.jpg',
+                'content'          => '<p>Global e-commerce requires robust multi-language support. InnoShop provides native multi-language content management to help you expand into overseas markets effortlessly.</p>',
+                'meta_title'       => 'Multi-Language E-Commerce Guide - InnoShop',
+                'meta_description' => 'Multi-Language E-Commerce Guide',
+                'meta_keywords'    => 'multi-language, e-commerce, InnoShop',
+            ],
+        ];
+    }
+
+    /**
+     * @return int[][]
+     */
+    private function getArticleTags(): array
+    {
+        return [
+            [
+                'id'         => 1,
+                'article_id' => 1,
+                'tag_id'     => 1,
+            ],
+            [
+                'id'         => 2,
+                'article_id' => 1,
+                'tag_id'     => 2,
+            ],
+        ];
+    }
+}

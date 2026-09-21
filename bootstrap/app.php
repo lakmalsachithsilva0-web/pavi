@@ -1,0 +1,98 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use InnoShop\Common\Services\Notification\NotificationEventSubscriber;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        $webMiddlewares = [
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ];
+        $middleware->group('front', $webMiddlewares);
+        $middleware->group('panel', $webMiddlewares);
+
+        $apiMiddlewares = [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ];
+        $middleware->group('front_api', $apiMiddlewares);
+        $middleware->group('panel_api', $apiMiddlewares);
+
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if (\Illuminate\Support\Str::startsWith($request->route()->uri(), 'api')) {
+                return front_route('home.index');
+            }
+
+            if (is_admin()) {
+                return panel_route('login.index');
+            } else {
+                return front_route('login.index');
+            }
+        });
+
+        $middleware->validateCsrfTokens(except: [
+            '*callback*',
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->dontReportDuplicates();
+        $exceptions->reportable(function (Throwable $e) {
+            if ($e instanceof NotFoundHttpException) {
+                return;
+            }
+            if ($e instanceof HttpException && $e->getStatusCode() < 500) {
+                return;
+            }
+
+            NotificationEventSubscriber::notifyException($e);
+        });
+
+        $exceptions->render(function (Exception $e, Request $request) {
+            if ($request->is('api/*')) {
+                return json_fail($e->getMessage());
+            }
+
+            return null;
+        });
+
+        // Handle 404 errors for frontend
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->is('panel/*') || $request->is('admin/*')) {
+                return null;
+            }
+
+            if (! $request->is('api/*')) {
+                try {
+                    return response()->view('errors.404', [], 404);
+                } catch (Exception $exception) {
+                    return null;
+                }
+            }
+
+            return null;
+        });
+    })->create();

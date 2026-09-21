@@ -1,0 +1,106 @@
+<div class="header-box d-flex justify-content-between align-items-center">
+  <div class="mb-menu d-lg-none"><i class="bi bi-list"></i></div>
+  <div class="header-logo-wrap d-none d-lg-flex align-items-center">
+    <div class="header-logo">
+      <a href="{{ panel_route('home.index') }}" class="sidebar-logo">
+        <img src="{{ image_origin(system_setting('panel_logo', 'images/logo-panel.png')) }}" class="sidebar-logo-normal img-fluid">
+        @php
+          $iconLogo = system_setting('panel_icon_logo', system_setting('panel_logo', 'images/logo-panel.png'));
+          if (empty($iconLogo) || !file_exists(public_path($iconLogo))) {
+            $iconLogo = 'images/logo-icon.svg';
+          }
+        @endphp
+        <img src="{{ image_origin($iconLogo) }}" class="sidebar-logo-icon img-fluid">
+      </a>
+    </div>
+  </div>
+  <div class="header-logo d-lg-none">
+    <a href="{{ panel_route('home.index') }}" class="sidebar-logo">
+      <img src="{{ image_origin(system_setting('panel_logo', 'images/logo-panel.png')) }}" class="img-fluid">
+    </a>
+  </div>
+  <div id="panel-menu-search" class="header-search d-none d-lg-flex align-items-center" data-search-url="{{ panel_route('search.menus') }}" data-placeholder="{{ __('panel/common.search_menu') }}"></div>
+  <div class="d-flex justify-content-end right-tool">
+    @hookinsert('panel.header.toolbar.start')
+
+    <!-- Market -->
+    <div class="header-item dropdown d-none d-lg-flex align-items-center">
+      <span class="dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-grid me-1"></i><span>{{ __('panel/common.market') }}</span>
+      </span>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{{ panel_route('plugin-market.index') }}">
+          <i class="bi bi-puzzle me-2"></i>{{ __('panel/common.market_plugin') }}
+        </a></li>
+        <li><a class="dropdown-item" href="{{ panel_route('theme-market.index') }}">
+          <i class="bi bi-palette me-2"></i>{{ __('panel/common.market_theme') }}
+        </a></li>
+      </ul>
+    </div>
+
+    <!-- Language -->
+    <div class="header-item dropdown d-none d-lg-flex align-items-center">
+      <div class="wh-20 me-2"><img src="{{ image_origin('images/flags/'. panel_locale_code().'.svg') }}" class="img-fluid"></div>
+      <span class="dropdown-toggle" data-bs-toggle="dropdown">
+        <span>{{ current_panel_locale()['name'] }}</span>
+      </span>
+      <ul class="dropdown-menu dropdown-menu-end locale-dropdown-menu">
+        @foreach (panel_locales() as $locale)
+        <li>
+          <a class="dropdown-item d-flex align-items-center" href="{{ panel_route('locale.switch', ['code'=> $locale['code']]) }}">
+            <div class="wh-20 me-2"><img src="{{ image_origin($locale['image']) }}" class="img-fluid border"></div>
+            {{ $locale['name'] }}
+          </a>
+        </li>
+        @endforeach
+      </ul>
+    </div>
+
+    <!-- User -->
+    <div class="header-item dropdown d-flex align-items-center">
+      <span class="dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown">
+        <div class="user-avatar me-2">
+          <i class="bi bi-person-circle fs-5"></i>
+        </div>
+        <div class="user-info d-none d-lg-block">
+          <div class="user-name">{{ current_admin()->name }}</div>
+        </div>
+      </span>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li class="dropdown-header">
+          <div class="d-flex align-items-center">
+            <div class="user-avatar me-2">
+              <i class="bi bi-person-circle fs-4"></i>
+            </div>
+            <div>
+              <div class="user-name">{{ current_admin()->name }}</div>
+              <div class="user-email small text-muted">{{ current_admin()->email }}</div>
+            </div>
+          </div>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center" href="{{ front_route('home.index') }}" target="_blank">
+            <i class="bi bi-house me-2"></i>
+            <span>{{ __('panel/dashboard.frontend') }}</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center" href="{{ panel_route('account.index') }}">
+            <i class="bi bi-person me-2"></i>
+            <span>{{ __('panel/dashboard.profile') }}</span>
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center text-danger" href="{{ panel_route('logout.index') }}">
+            <i class="bi bi-box-arrow-right me-2"></i>
+            <span>{{ __('panel/dashboard.sign_out') }}</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    @hookinsert('panel.header.toolbar.end')
+  </div>
+</div>

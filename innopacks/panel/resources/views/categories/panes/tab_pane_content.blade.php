@@ -1,0 +1,74 @@
+<div class="tab-pane fade mt-3" id="content-tab-pane" role="tabpanel" aria-labelledby="content-tab" tabindex="0">
+
+  <div class="mb-1 fs-6 fw-medium">{{ panel_trans('category.content') }}</div>
+
+  @if(has_translator())
+    <div
+      class="col-md-5 d-flex align-items-center my-3 py-2 px-3 text-primary-emphasis bg-primary-subtle border border-primary-subtle rounded-3"
+      style="white-space: nowrap;">
+      <div class="me-3">{{ __('panel/product.auto_translate') }}</div>
+      <select id="source-tab" class="form-select form-select-sm">
+        @foreach (locales() as $locale)
+          <option value="{{ $locale->code }}">{{ $locale->name }}</option>
+        @endforeach
+      </select>
+      <div class="px-1"><i class="bi bi-arrow-right"></i></div>
+      <select id="target-tab" class="form-select form-select-sm">
+        <option value="all">{{ __('panel/product.other_all') }}</option>
+        @foreach (locales() as $locale)
+          <option value="{{ $locale->code }}">{{ $locale->name }}</option>
+        @endforeach
+      </select>
+      <button type="button" class="mx-2 btn btn-primary btn-custom-small btn-sm" id="translate-html">
+        {{ __('panel/product.translate') }}
+      </button>
+    </div>
+  @endif
+
+  {{-- 多语言内容Tab导航 --}}
+  <ul class="nav nav-tabs mb-2" id="locales-content-tab" role="tablist">
+    @foreach (locales() as $locale)
+      <li class="nav-item" role="presentation">
+        <button class="nav-link d-flex {{ $loop->first ? 'active' : '' }}" id="locale-{{ $locale->code }}-content-tab"
+          data-bs-toggle="tab" data-bs-target="#locale-{{ $locale->code }}-content-pane" type="button"
+          role="tab" aria-controls="locale-{{ $locale->code }}-content-pane"
+          aria-selected="{{ $loop->first ? 'true' : 'false' }}">
+          <div class="wh-20 me-2">
+            <img src="{{ image_origin($locale->image) }}" class="img-fluid {{ default_locale_class($locale->code) }}">
+          </div>
+          {{ $locale->name }}
+        </button>
+      </li>
+    @endforeach
+  </ul>
+
+  {{-- 多语言内容Tab面板 --}}
+  <div class="tab-content pt-1" id="locales-content-tabContent">
+    @foreach (locales() as $locale)
+      <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}"
+        id="locale-{{ $locale->code }}-content-pane" role="tabpanel"
+        aria-labelledby="locale-{{ $locale->code }}-content-tab" tabindex="0">
+
+        <input type="hidden" name="translations[{{ $locale->code }}][locale]" value="{{ $locale->code }}">
+
+        {{-- 分类详细描述 --}}
+        <div class="mb-3">
+          <x-common-form-rich-text name="translations[{{ $locale->code }}][content]"
+                                   elID="content-{{ $locale->code }}"
+                                   value="{{ old('translations.' . $locale->code . '.content', $category->translate($locale->code, 'content')) }}"
+                                   placeholder="{{ panel_trans('category.content') }}"
+                                   maxlength="20000"
+                                   data-locale="{{ $locale->code }}"
+                                   :generate="true"
+                                   column="category_content"
+                                   entity-type="category"
+                                   :entity-id="$category->id ?? 0"/>
+          <div class="mt-2 text-muted small">
+            <i class="bi bi-info-circle me-1"></i>{{ panel_trans('category.content_description') }}
+          </div>
+        </div>
+
+      </div>
+    @endforeach
+  </div>
+</div>

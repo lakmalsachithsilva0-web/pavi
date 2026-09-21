@@ -1,0 +1,159 @@
+{
+    "name": "innoshop/innoshop",
+    "type": "project",
+    "description": "InnoShop - Innovative Open Source E-commerce System based on Laravel 12.",
+    "keywords": ["innoshop", "laravel", "ecommerce", "shop", "cart", "ai", "plugin", "theme", "multilingual", "multi-currency"],
+    "license": "OSL-3.0",
+    "require": {
+        "php": "^8.3",
+        "ext-bcmath": "*",
+        "ext-curl": "*",
+        "ext-dom": "*",
+        "ext-fileinfo": "*",
+        "ext-libxml": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-simplexml": "*",
+        "aws/aws-sdk-php": "^3.342",
+        "devster/ubench": "^2.1",
+        "ezyang/htmlpurifier": "^4.19",
+        "geoip2/geoip2": "^3.2",
+        "intervention/image": "^4.2",
+        "laravel/ai": "^0.10.1",
+        "laravel/framework": "^13.0",
+        "laravel/horizon": "^5.46",
+        "laravel/mcp": "^0.9.1",
+        "laravel/octane": "^2.8",
+        "laravel/reverb": "^1.10",
+        "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.18",
+        "laravel/tinker": "^3.0",
+        "league/flysystem-aws-s3-v3": "^3.32",
+        "mobiledetect/mobiledetectlib": "^4.8",
+        "nelexa/zip": "^4.0",
+        "overtrue/easy-sms": "^3.2",
+        "parsedown/parsedown": "^1.8",
+        "phpunit/php-timer": "^7.0",
+        "predis/predis": "^3.4",
+        "rap2hpoutre/fast-excel": "^5.5",
+        "spatie/laravel-permission": "^8.3",
+        "spatie/laravel-sitemap": "^7.3",
+        "srmklive/paypal": "^3.0",
+        "stripe/stripe-php": "^21.0",
+        "tormjens/eventy": "^0.9.5",
+        "w7corp/easywechat": "^6.7"
+    },
+    "require-dev": {
+        "barryvdh/laravel-debugbar": "^4.3",
+        "fakerphp/faker": "^1.23",
+        "kitloong/laravel-migrations-generator": "^7.0",
+        "knuckleswtf/scribe": "^5.9",
+        "larastan/larastan": "^3.5",
+        "laravel/envoy": "^2.10",
+        "laravel/pint": "^1.25",
+        "laravel/sail": "^1.26",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.0",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.0.1",
+        "spatie/laravel-ignition": "^2.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Plugin\\": "plugins",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/",
+            "InnoShop\\Install\\": "innopacks/install/src",
+            "InnoShop\\Aicore\\": "innopacks/aicore/src",
+            "InnoShop\\Mcp\\": "innopacks/mcp/src",
+            "InnoShop\\Common\\": "innopacks/common/src",
+            "InnoShop\\Front\\": "innopacks/front/src",
+            "InnoShop\\Panel\\": "innopacks/panel/src",
+            "InnoShop\\Restapi\\": "innopacks/restapi/src",
+            "InnoShop\\Plugin\\": "innopacks/plugin/src",
+            "InnoShop\\Devtools\\": "innopacks/devtools/src"
+        },
+        "files": [
+            "innopacks/install/helpers.php",
+            "innopacks/common/helpers.php",
+            "innopacks/panel/helpers.php",
+            "innopacks/plugin/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "InnoShop\\Aicore\\Tests\\": "innopacks/aicore/tests",
+            "InnoShop\\Mcp\\Tests\\": "innopacks/mcp/tests",
+            "InnoShop\\Install\\Tests\\": "innopacks/install/tests",
+            "InnoShop\\Common\\Tests\\": "innopacks/common/tests",
+            "InnoShop\\Front\\Tests\\": "innopacks/front/tests",
+            "InnoShop\\Panel\\Tests\\": "innopacks/panel/tests",
+            "InnoShop\\Restapi\\Tests\\": "innopacks/restapi/tests",
+            "InnoShop\\Plugin\\Tests\\": "innopacks/plugin/tests",
+            "InnoShop\\Devtools\\Tests\\": "innopacks/devtools/tests"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi",
+            "npm install --no-audit --no-fund",
+            "npm run build",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+            "@php artisan migrate --graceful --ansi"
+        ],
+        "pint": [
+            "./vendor/bin/pint --config=pint.json"
+        ],
+        "phpstan": [
+            "./vendor/bin/phpstan analyse --memory-limit=1G"
+        ],
+        "phpstan:plugins": [
+            "./vendor/bin/phpstan analyse plugins --level=1 --memory-limit=512M"
+        ],
+        "phpstan:innopacks": [
+            "./vendor/bin/phpstan analyse innopacks --level=1 --memory-limit=512M"
+        ],
+        "phpstan:baseline": [
+            "./vendor/bin/phpstan analyse --generate-baseline --memory-limit=1G"
+        ],
+        "phpstan:clear": [
+            "./vendor/bin/phpstan clear-result-cache"
+        ],
+        "prepare": [
+            "composer run post-autoload-dump",
+            "composer run post-update-cmd",
+            "composer run post-root-package-install",
+            "composer run post-create-project-cmd",
+            "chmod 755 .env",
+            "chcon -R -t httpd_sys_rw_content_t .env"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

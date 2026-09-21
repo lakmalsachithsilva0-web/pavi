@@ -1,0 +1,331 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+namespace InnoShop\Front;
+
+use Exception;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\View\FileViewFinder;
+use InnoShop\Common\Middleware\ContentFilterHook;
+use InnoShop\Common\Middleware\EventActionHook;
+use InnoShop\Common\Middleware\VisitTrackingMiddleware;
+use InnoShop\Common\Models\Customer;
+use InnoShop\Front\Middleware\CustomerAuthentication;
+use InnoShop\Front\Middleware\GlobalFrontData;
+use InnoShop\Front\Middleware\MaintenanceMode;
+use InnoShop\Front\Middleware\SetFrontLocale;
+
+class FrontServiceProvider extends ServiceProvider
+{
+    /**
+     * Boot front service provider.
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function boot(): void
+    {
+        if (! has_install_lock()) {
+            return;
+        }
+
+        load_settings();
+        $this->registerWebRoutes();
+        $this->loadTranslations();
+        $this->registerGuard();
+        $this->registerUploadFileSystem();
+        $this->publishViewTemplates();
+        $this->loadThemeViewPath();
+        $this->loadViewComponents();
+        $this->loadThemeTranslations();
+        $this->loadThemeRoutes();
+        $this->bootTheme();
+    }
+
+    /**
+     * @return void
+     */
+    public function register(): void
+    {
+        app('router')->aliasMiddleware('customer_auth', CustomerAuthentication::class);
+    }
+
+    /**
+     * Register guard for frontend.
+     */
+    protected function registerGuard(): void
+    {
+        Config::set('auth.providers.customer', [
+            'driver' => 'eloquent',
+            'model'  => Customer::class,
+        ]);
+
+        Config::set('auth.guards.customer', [
+            'driver'   => 'session',
+            'provider' => 'customer',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    protected function registerUploadFileSystem(): void
+    {
+        Config::set('filesystems.disks.upload', [
+            'driver'      => 'local',
+            'root'        => public_path('static/uploads'),
+            'url'         => env('APP_URL').'/static/uploads',
+            'visibility'  => 'public',
+            'throw'       => true,
+            'permissions' => [
+                'file' => [
+                    'public'  => 0755,
+                    'private' => 0755,
+                ],
+                'dir' => [
+                    'public'  => 0755,
+                    'private' => 0755,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Register admin front routes.
+     *
+     * @return void
+     * @throws Exception
+     */
+    protected function registerWebRoutes(): void
+    {
+        $router      = $this->app['router'];
+        $middlewares = [
+            SetFrontLocale::class,
+            EventActionHook::class,
+            ContentFilterHook::class,
+            GlobalFrontData::class,
+            VisitTrackingMiddleware::class,
+            MaintenanceMode::class,
+        ];
+
+        foreach ($middlewares as $middleware) {
+            $router->pushMiddlewareToGroup('front', $middleware);
+        }
+
+        Route::middleware('front')
+            ->name('front.')
+            ->group(function () {
+                $path = __DIR__.'/../routes/root.php';
+                if (is_file($path)) {
+                    $this->loadRoutesFrom($path);
+                }
+            });
+
+        $locales   = locales();
+        $webRoutes = __DIR__.'/../routes/web.php';
+        if (hide_url_locale() || $locales->isEmpty()) {
+            Route::middleware('front')
+                ->name('front.')
+                ->group(function () use ($webRoutes) {
+                    if (is_file($webRoutes)) {
+                        $this->loadRoutesFrom($webRoutes);
+                    }
+                });
+        } else {
+            foreach ($locales as $locale) {
+                Route::middleware('front')
+                    ->prefix($locale->code)
+                    ->name($locale->code.'.front.')
+                    ->group(function () use ($webRoutes) {
+                        if (is_file($webRoutes)) {
+                            $this->loadRoutesFrom($webRoutes);
+                        }
+                    });
+            }
+        }
+    }
+
+    /**
+     * Register front language
+     * @return void
+     */
+    protected function loadTranslations(): void
+    {
+        if (! is_dir(__DIR__.'/../lang')) {
+            return;
+        }
+
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'front');
+        $this->publishes([
+            __DIR__.'/../lang' => $this->app->langPath('vendor/front'),
+        ], 'lang');
+    }
+
+    /**
+     * Publish view as default theme.
+     * php artisan vendor:publish --provider='InnoShop\Front\FrontServiceProvider' --tag=views
+     *
+     * @return void
+     */
+    protected function publishViewTemplates(): void
+    {
+        $originViewPath = __DIR__.'/../resources';
+        $customViewPath = base_path('themes/default');
+
+        $this->publishes([
+            $originViewPath => $customViewPath,
+        ], 'views');
+    }
+
+    /**
+     * Load theme view path.
+     *
+     * @return void
+     */
+    protected function loadThemeViewPath(): void
+    {
+        // `view.finder` is a container `bind`, not a singleton: each `make('view.finder')` is a new
+        // instance. The View factory keeps the one it got when `view` was first resolved — mutating
+        // a separately resolved finder does nothing. Always prepend on the factory's finder.
+        $finder = $this->app->make('view')->getFinder();
+        if (! $finder instanceof FileViewFinder) {
+            return;
+        }
+
+        // Prepend search paths in place (do not replace finder or forget `view`) so package engines
+        // and namespaces stay intact.
+        $packViews = realpath(__DIR__.'/../resources/views') ?: (__DIR__.'/../resources/views');
+        if (is_dir($packViews)) {
+            $finder->prependLocation($packViews);
+        }
+
+        if ($theme = system_setting('theme')) {
+            $themeViewPath = base_path("themes/{$theme}/views");
+            if (is_dir($themeViewPath)) {
+                $finder->prependLocation($themeViewPath);
+            }
+        }
+    }
+
+    /**
+     * Load view components.
+     *
+     * @return void
+     */
+    protected function loadViewComponents(): void
+    {
+        // Register basic components
+        $this->loadViewComponentsAs('front', [
+            'breadcrumb' => Components\Breadcrumb::class,
+            'review'     => Components\Review::class,
+        ]);
+
+        // Delay registration of header and footer components to ensure plugin hooks take effect
+        $this->app->booted(function () {
+            $headerClass = fire_hook_filter('front.header.component.class', Components\Header::class);
+            $footerClass = fire_hook_filter('front.footer.component.class', Components\Footer::class);
+
+            $this->loadViewComponentsAs('front', [
+                'header' => $headerClass,
+                'footer' => $footerClass,
+            ]);
+        });
+    }
+
+    /**
+     * Load theme languages.
+     *
+     * @return void
+     */
+    protected function loadThemeTranslations(): void
+    {
+        $currentTheme = system_setting('theme');
+        if (! $currentTheme) {
+            return;
+        }
+
+        $themeLangPath = base_path("themes/{$currentTheme}/lang");
+        if (! is_dir($themeLangPath)) {
+            return;
+        }
+
+        $this->loadTranslationsFrom($themeLangPath, "theme-{$currentTheme}");
+    }
+
+    /**
+     * Load theme boot file (setup/boot.php) for runtime hook registration.
+     * Follows the same require → callable → call pattern as demo seeder.
+     */
+    protected function bootTheme(): void
+    {
+        $currentTheme = system_setting('theme');
+        if (! $currentTheme) {
+            return;
+        }
+
+        $bootFile = base_path("themes/{$currentTheme}/setup/boot.php");
+        if (! is_file($bootFile)) {
+            return;
+        }
+
+        $boot = require $bootFile;
+        if (is_callable($boot)) {
+            $boot();
+        }
+    }
+
+    /**
+     * Load theme routes (Routes/front.php with locale handling, Routes/root.php without).
+     *
+     * @return void
+     */
+    protected function loadThemeRoutes(): void
+    {
+        $currentTheme = system_setting('theme');
+        if (! $currentTheme) {
+            return;
+        }
+
+        $themeBasePath = base_path("themes/{$currentTheme}");
+
+        // Root routes (no locale prefix)
+        $rootRoutePath = "$themeBasePath/routes/root.php";
+        if (file_exists($rootRoutePath)) {
+            Route::middleware('front')
+                ->name('front.')
+                ->group(function () use ($rootRoutePath) {
+                    $this->loadRoutesFrom($rootRoutePath);
+                });
+        }
+
+        // Front routes (with locale prefix handling)
+        $frontRoutePath = "$themeBasePath/routes/front.php";
+        if (file_exists($frontRoutePath)) {
+            $locales = locales();
+            if (hide_url_locale() || $locales->isEmpty()) {
+                Route::middleware('front')
+                    ->name('front.')
+                    ->group(function () use ($frontRoutePath) {
+                        $this->loadRoutesFrom($frontRoutePath);
+                    });
+            } else {
+                foreach ($locales as $locale) {
+                    Route::middleware('front')
+                        ->prefix($locale->code)
+                        ->name($locale->code.'.front.')
+                        ->group(function () use ($frontRoutePath) {
+                            $this->loadRoutesFrom($frontRoutePath);
+                        });
+                }
+            }
+        }
+    }
+}

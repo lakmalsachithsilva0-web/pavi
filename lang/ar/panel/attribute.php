@@ -1,0 +1,16 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+return [
+    'attribute'       => 'السمة',
+    'attribute_value' => 'قيمة السمة',
+    'name'            => 'اسم الملكية',
+    'set_attribute'   => 'تعيين السمة',
+    'group'           => 'مجموعة السمات',
+];

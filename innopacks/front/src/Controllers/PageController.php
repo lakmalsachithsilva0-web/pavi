@@ -1,0 +1,99 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+namespace InnoShop\Front\Controllers;
+
+use App\Http\Controllers\Controller;
+use Exception;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use InnoShop\Common\Models\Page;
+use InnoShop\Common\Repositories\PageRepo;
+
+class PageController extends Controller
+{
+    /**
+     * Page list (redirects to home)
+     *
+     * @return RedirectResponse
+     */
+    public function index(): RedirectResponse
+    {
+        return redirect()->route('front.home.index');
+    }
+
+    /**
+     * Show page by ID
+     *
+     * @param  Page  $page
+     * @return mixed
+     * @throws Exception
+     */
+    public function show(Page $page): mixed
+    {
+        if (! $page->active) {
+            abort(404);
+        }
+
+        return $this->renderPage($page);
+    }
+
+    /**
+     * Show page by slug (consistent with product-{slug}, category-{slug}, article-{slug})
+     *
+     * @param  Request  $request
+     * @return mixed
+     * @throws Exception
+     */
+    public function slugShow(Request $request): mixed
+    {
+        $slug = $request->slug;
+        $page = PageRepo::getInstance()
+            ->builder(['slug' => $slug, 'active' => true])
+            ->firstOrFail();
+
+        return $this->renderPage($page);
+    }
+
+    /**
+     * Render page content
+     *
+     * @param  Page  $page
+     * @return mixed
+     * @throws Exception
+     */
+    private function renderPage(Page $page): mixed
+    {
+        if (! $page->active) {
+            abort(404);
+        }
+
+        $page->increment('viewed');
+
+        $slug = $page->slug;
+
+        // Theme has a slug-specific blade → use it directly (code-defined, no template/content)
+        if (view()->exists("pages.$slug")) {
+            return inno_view("pages.$slug", ['page' => $page]);
+        }
+
+        // Fallback: backend template field (raw full-page HTML) or content (rich text)
+        $data = [
+            'slug' => $slug,
+            'page' => $page,
+        ];
+        $template = $page->translation->template ?? '';
+        if ($template) {
+            // Security invariant: DB content is echoed raw and must never be compiled through Blade.
+            $data['result'] = $template;
+        }
+
+        return inno_view('pages.show', $data);
+    }
+}

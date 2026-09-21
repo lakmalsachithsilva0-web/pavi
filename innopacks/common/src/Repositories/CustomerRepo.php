@@ -1,0 +1,497 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+namespace InnoShop\Common\Repositories;
+
+use Exception;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use InnoShop\Common\Models\Customer;
+use InnoShop\Common\Repositories\Customer\GroupRepo;
+use InnoShop\Common\Resources\AddressListItem;
+use Throwable;
+
+class CustomerRepo extends BaseRepo
+{
+    public static function getFromList(): array
+    {
+        $options = Customer::getFromOptions();
+        $result  = [];
+
+        foreach ($options as $key => $value) {
+            $result[] = [
+                'key'   => $key,
+                'value' => $value,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array[]
+     */
+    public static function getCriteria(): array
+    {
+        $criteria = [
+            ['name' => 'keyword', 'type' => 'input', 'label' => trans('panel/customer.name')],
+            ['name' => 'email', 'type' => 'input', 'label' => trans('panel/customer.email')],
+            ['name'       => 'customer_group_id', 'label' => trans('panel/customer.group'), 'type' => 'select',
+                'options' => GroupRepo::getInstance()->getSimpleList(), 'options_key' => 'id', 'options_label' => 'name',
+            ],
+            ['name' => 'from', 'type' => 'select', 'label' => trans('panel/customer.from'), 'options' => self::getFromList(), 'options_key' => 'key', 'options_label' => 'value'],
+            ['name' => 'locale', 'type' => 'input', 'label' => trans('panel/customer.locale')],
+            ['name' => 'created_at', 'type' => 'date_range', 'label' => trans('common/base.created_at')],
+        ];
+
+        return fire_hook_filter('repo.customer.criteria', $criteria);
+    }
+
+    /**
+     * Get search field options for data_search component
+     *
+     * @return array
+     */
+    public static function getSearchFieldOptions(): array
+    {
+        $options = [
+            ['value' => '', 'label' => trans('panel/common.all_fields')],
+            ['value' => 'name', 'label' => trans('panel/customer.name')],
+            ['value' => 'email', 'label' => trans('panel/customer.email')],
+            ['value' => 'telephone', 'label' => trans('panel/customer.telephone')],
+        ];
+
+        return fire_hook_filter('common.repo.customer.search_field_options', $options);
+    }
+
+    /**
+     * Get filter button options for data_search component
+     *
+     * @return array
+     */
+    public static function getFilterButtonOptions(): array
+    {
+        $filters = [
+            [
+                'name'    => 'active',
+                'label'   => trans('panel/common.status'),
+                'type'    => 'button',
+                'options' => [
+                    ['value' => '', 'label' => trans('panel/common.all')],
+                    ['value' => '1', 'label' => trans('panel/common.active_yes')],
+                    ['value' => '0', 'label' => trans('panel/common.active_no')],
+                ],
+            ],
+        ];
+
+        return fire_hook_filter('common.repo.customer.filter_button_options', $filters);
+    }
+
+    /**
+     * @param  $filters
+     * @return LengthAwarePaginator
+     * @throws Exception
+     */
+    public function list($filters = []): LengthAwarePaginator
+    {
+        return $this->builder($filters)->orderByDesc('id')->paginate();
+    }
+
+    /**
+     * @param  array  $filters
+     * @return Builder
+     */
+    public function builder(array $filters = []): Builder
+    {
+        $builder = Customer::query();
+
+        $email = $filters['email'] ?? '';
+        if ($email) {
+            $builder->where('email', 'like', "%$email%");
+        }
+
+        $customer_group_id = $filters['customer_group_id'] ?? '';
+        if ($customer_group_id) {
+            $builder->where('customer_group_id', $customer_group_id);
+        }
+
+        if (isset($filters['active'])) {
+            $builder->where('active', (bool) $filters['active']);
+        }
+
+        $locale = $filters['locale'] ?? '';
+        if ($locale) {
+            $builder->where('locale', $locale);
+        }
+
+        $from = $filters['from'] ?? '';
+        if ($from) {
+            $builder->where('from', $from);
+        }
+
+        $keyword = $filters['keyword'] ?? '';
+        if ($keyword) {
+            $builder->where(function ($query) use ($keyword) {
+                $query->where('email', 'like', "%$keyword%")
+                    ->orWhere('name', 'like', "%$keyword%");
+            });
+        }
+
+        $createdStart = $filters['created_at_start'] ?? '';
+        if ($createdStart) {
+            $builder->where('created_at', '>', $createdStart);
+        }
+
+        $createdEnd = $filters['created_at_end'] ?? '';
+        if ($createdEnd) {
+            $builder->where('created_at', '<', $createdEnd);
+        }
+
+        // Handle new search filters (keyword + search_field)
+        $searchKeyword = $filters['keyword'] ?? '';
+        $searchField   = $filters['search_field'] ?? '';
+        if ($searchKeyword && $searchField) {
+            $builder->where($searchField, 'like', "%{$searchKeyword}%");
+        }
+
+        // Handle date range filter
+        $dateFilter = $filters['date_filter'] ?? '';
+        $startDate  = $filters['start_date'] ?? '';
+        $endDate    = $filters['end_date'] ?? '';
+
+        if ($dateFilter === 'today') {
+            $builder->whereDate('created_at', today());
+        } elseif ($dateFilter === 'this_week') {
+            $builder->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($dateFilter === 'this_month') {
+            $builder->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+        } elseif ($dateFilter === 'custom' && $startDate && $endDate) {
+            $builder->whereBetween('created_at', [$startDate.' 00:00:00', $endDate.' 23:59:59']);
+        }
+
+        return fire_hook_filter('repo.customer.builder', $builder);
+    }
+
+    /**
+     * @param  $data
+     * @return Customer
+     * @throws Exception|Throwable
+     */
+    public function create($data): Customer
+    {
+        $data = $this->handleData($data);
+        if (! isset($data['password'])) {
+            $data['password'] = '';
+        }
+        $item = new Customer($data);
+        $item->saveOrFail();
+
+        return fire_hook_filter('repo.customer.create', $item);
+    }
+
+    /**
+     * @param  $item
+     * @param  $data
+     * @return mixed
+     * @throws Exception
+     */
+    public function update($item, $data): mixed
+    {
+        $data = $this->handleData($data);
+
+        $item->fill($data);
+        $item->saveOrFail();
+
+        fire_hook_filter('repo.customer.update', $item);
+
+        return $item;
+    }
+
+    /**
+     * Partial update for REST PATCH: merge validated / submitted fields onto the current customer,
+     * then run the same pipeline as update(). Front profile uses null for omitted keys in only([...]);
+     * panel PATCH may send name, email, and/or password.
+     *
+     * @param  mixed  $customer
+     * @param  array<string, mixed>  $data
+     *
+     * @throws Exception|Throwable
+     */
+    public function patch(mixed $customer, array $data): mixed
+    {
+        $profileKeys = ['avatar', 'name', 'email'];
+        $mergeKeys   = [
+            'email', 'name', 'avatar', 'password', 'calling_code', 'telephone',
+            'customer_group_id', 'address_id', 'locale', 'active', 'code', 'from',
+        ];
+
+        $requestData = [
+            'email'             => $customer->email,
+            'name'              => $customer->name,
+            'customer_group_id' => $customer->customer_group_id,
+            'address_id'        => $customer->address_id,
+            'locale'            => $customer->locale,
+            'active'            => $customer->active,
+            'code'              => $customer->code ?? '',
+            'from'              => $customer->from ?? Customer::FROM_PC_WEB,
+            'calling_code'      => $customer->calling_code,
+            'telephone'         => $customer->telephone,
+        ];
+        if ($customer->avatar) {
+            $requestData['avatar'] = $customer->avatar;
+        }
+
+        $applied = false;
+        foreach ($data as $key => $value) {
+            if ($key === 'password_confirmation') {
+                continue;
+            }
+            if (in_array($key, $profileKeys, true) && $value === null) {
+                continue;
+            }
+            if (in_array($key, $mergeKeys, true)) {
+                $requestData[$key] = $value;
+                $applied           = true;
+            }
+        }
+
+        if (! $applied) {
+            return $customer;
+        }
+
+        return $this->update($customer, $requestData);
+    }
+
+    /**
+     * Update profile only include avatar, name and email.
+     *
+     * @param  $item
+     * @param  $data
+     * @return mixed
+     */
+    public function updateProfile($item, $data): mixed
+    {
+        $updateData = [
+            'avatar' => $data['avatar'] ?? '',
+            'name'   => $data['name'],
+            'email'  => $data['email'] ?? null,
+        ];
+
+        // Update phone number if provided
+        if (isset($data['calling_code'])) {
+            $updateData['calling_code'] = $data['calling_code'];
+        }
+        if (isset($data['telephone'])) {
+            $updateData['telephone'] = $data['telephone'];
+        }
+
+        $item->fill($updateData);
+        $item->saveOrFail();
+
+        return $item;
+    }
+
+    /**
+     * @param  $email
+     * @return mixed
+     */
+    public function findByEmail($email): mixed
+    {
+        return $this->builder()->where('email', $email)->first();
+    }
+
+    /**
+     * Find customer by phone
+     *
+     * @param  string  $callingCode
+     * @param  string  $telephone
+     * @return Customer|null
+     */
+    public function findByPhone(string $callingCode, string $telephone): ?Customer
+    {
+        return $this->builder()
+            ->where('calling_code', $callingCode)
+            ->where('telephone', $telephone)
+            ->first();
+    }
+
+    /**
+     * Find customer by email or phone
+     *
+     * @param  string  $account
+     * @return Customer|null
+     */
+    public function findByEmailOrPhone(string $account): ?Customer
+    {
+        // Try email first
+        $customer = $this->findByEmail($account);
+        if ($customer) {
+            return $customer;
+        }
+
+        // Try phone format: +8613812345678 or 8613812345678
+        if (preg_match('/^(\+?)(\d{1,4})(\d{4,14})$/', $account, $matches)) {
+            $callingCode = $matches[1].$matches[2];
+            $telephone   = $matches[3];
+
+            return $this->findByPhone($callingCode, $telephone);
+        }
+
+        return null;
+    }
+
+    /**
+     * Update current password
+     *
+     * @param  Customer  $customer
+     * @param  $data
+     * @return bool
+     * @throws Exception
+     */
+    public function updatePassword(mixed $customer, $data): bool
+    {
+        $oldPassword        = $data['old_password'];
+        $newPassword        = $data['new_password'] ?? '';
+        $newPasswordConfirm = $data['new_password_confirmation'] ?? '';
+
+        if (! $customer->verifyPassword($oldPassword)) {
+            throw new Exception('invalid_password');
+        } elseif ($newPassword != $newPasswordConfirm) {
+            throw new Exception('new_password_must_keep_same');
+        }
+
+        return $customer->update(['password' => bcrypt($newPassword)]);
+    }
+
+    /**
+     * @param  mixed  $customer
+     * @param  $newPassword
+     * @return mixed
+     */
+    public function forceUpdatePassword(mixed $customer, $newPassword): mixed
+    {
+        return $customer->update(['password' => bcrypt($newPassword)]);
+    }
+
+    /**
+     * @param  Customer  $item
+     * @return void
+     */
+    public function destroy($item): void
+    {
+        $item->favorites()->delete();
+        $item->socials()->delete();
+        $item->delete();
+    }
+
+    /**
+     * @param  array  $requestData
+     * @return array
+     * @throws Exception
+     */
+    private function handleData(array $requestData): array
+    {
+        $data = [
+            'email'             => $requestData['email'] ?? null,
+            'name'              => $requestData['name'] ?? '',
+            'customer_group_id' => $requestData['customer_group_id'] ?? 0,
+            'address_id'        => $requestData['address_id'] ?? 0,
+            'locale'            => $requestData['locale'] ?? locale_code(),
+            'active'            => $requestData['active'] ?? true,
+            'code'              => $requestData['code'] ?? '',
+            'from'              => $requestData['from'] ?? 'pc_web',
+        ];
+
+        $avatar = $requestData['avatar'] ?? '';
+        if ($avatar) {
+            $data['avatar'] = $avatar;
+        }
+
+        $password = $requestData['password'] ?? '';
+        if ($password) {
+            $data['password'] = bcrypt($password);
+        }
+
+        // Handle calling_code and telephone
+        if (isset($requestData['calling_code'])) {
+            $data['calling_code'] = trim($requestData['calling_code']);
+        }
+        if (isset($requestData['telephone'])) {
+            $data['telephone'] = trim($requestData['telephone']);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  $keyword
+     * @param  int  $limit
+     * @return mixed
+     */
+    public function autocomplete($keyword, int $limit = 10): mixed
+    {
+        $keyword = trim((string) $keyword);
+        $builder = Customer::query();
+        if ($keyword !== '') {
+            $builder->where(function ($query) use ($keyword) {
+                $query->where('email', 'like', "%$keyword%")
+                    ->orWhere('name', 'like', "%$keyword%");
+            });
+        }
+
+        return $builder->orderByDesc('id')->limit($limit)->get();
+    }
+
+    /**
+     * Get customer list by IDs.
+     *
+     * @param  mixed  $customerIDs
+     * @return mixed
+     */
+    public function getListByCustomerIDs(mixed $customerIDs): mixed
+    {
+        if (empty($customerIDs)) {
+            return [];
+        }
+        if (is_string($customerIDs)) {
+            $customerIDs = explode(',', $customerIDs);
+        }
+
+        return Customer::query()
+            ->whereIn('id', $customerIDs)
+            ->orderByRaw('FIELD(id, '.implode(',', $customerIDs).')')
+            ->get();
+    }
+
+    /**
+     * Get customer detail data including addresses, transactions, groups and locales.
+     *
+     * @param  Customer  $customer
+     * @param  int  $transactionPerPage
+     * @return array
+     */
+    public function getCustomerDetailData(Customer $customer, int $transactionPerPage = 10): array
+    {
+        $addresses = AddressListItem::collection($customer->addresses)->jsonSerialize();
+
+        $transactions = $customer->transactions()
+            ->orderByDesc('created_at')
+            ->paginate($transactionPerPage);
+
+        $data = [
+            'customer'     => $customer,
+            'addresses'    => $addresses,
+            'groups'       => GroupRepo::getInstance()->getSimpleList(),
+            'locales'      => locales()->toArray(),
+            'transactions' => $transactions,
+        ];
+
+        return fire_hook_filter('repo.customer.detail_data', $data);
+    }
+}

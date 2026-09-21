@@ -1,0 +1,90 @@
+<?php
+/**
+ * Copyright (c) Since 2024 InnoShop - All Rights Reserved
+ *
+ * @link       https://www.innoshop.com
+ * @author     InnoShop <team@innoshop.com>
+ * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ */
+
+namespace InnoShop\Restapi\FrontApiControllers;
+
+use Illuminate\Http\Request;
+use InnoShop\Common\Repositories\Customer\FavoriteRepo;
+use InnoShop\Common\Resources\FavoriteItem;
+use Knuckles\Scribe\Attributes\Authenticated;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+
+#[Group('Front - Favorites')]
+#[Authenticated]
+class FavoriteController extends BaseController
+{
+    /**
+     * @return mixed
+     */
+    #[Endpoint('List favorites')]
+    public function index(): mixed
+    {
+        $filters = [
+            'customer_id' => token_customer_id(),
+        ];
+        $favorites = FavoriteRepo::getInstance()->list($filters);
+
+        return FavoriteItem::collection($favorites);
+    }
+
+    /**
+     * Add to favorite list.
+     *
+     * @param  Request  $request
+     * @return mixed
+     */
+    #[Endpoint('Add to favorites')]
+    #[BodyParam('product_id', type: 'integer', required: true)]
+    public function store(Request $request): mixed
+    {
+        try {
+            $data = [
+                'customer_id' => token_customer_id(),
+                'product_id'  => $request->get('product_id'),
+            ];
+            FavoriteRepo::getInstance()->create($data);
+
+            return json_success(common_trans('base.saved_success'));
+        } catch (\Exception $e) {
+            return json_fail($e->getMessage());
+        }
+    }
+
+    /**
+     * Destroy favorite item.
+     *
+     * @param  Request  $request
+     * @return mixed
+     */
+    #[Endpoint('Remove from favorites')]
+    #[BodyParam('product_id', type: 'integer', required: true)]
+    public function cancel(Request $request): mixed
+    {
+        try {
+            $customerID = token_customer_id();
+            $filters    = [
+                'customer_id' => $customerID,
+                'product_id'  => $request->get('product_id'),
+            ];
+
+            $favorite = FavoriteRepo::getInstance()->builder($filters)->first();
+            if ($customerID != $favorite->customer_id) {
+                throw new \Exception(front_trans('not_belongs_to_you'));
+            }
+
+            $favorite->delete();
+
+            return json_success(common_trans('base.deleted_success'));
+        } catch (\Exception $e) {
+            return json_fail($e->getMessage());
+        }
+    }
+}

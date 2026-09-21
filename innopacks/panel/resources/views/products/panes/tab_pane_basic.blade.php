@@ -1,0 +1,102 @@
+<div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab"
+     tabindex="0">
+  <div class="mb-3 col-12 col-md-6">
+    <label class="form-label">{{ __('panel/product.type') }}</label>
+    <select class="form-select" name="type" id="product-type" {{ $product->id ? 'disabled' : '' }} required>
+      @php
+        $productTypes = \InnoShop\Common\Repositories\ProductRepo::getProductTypes();
+        $currentType = old('type', $product->type ?? 'normal');
+      @endphp
+      @foreach($productTypes as $typeValue => $typeLabel)
+        <option value="{{ $typeValue }}" {{ $currentType == $typeValue ? 'selected' : '' }}>
+          {{ $typeLabel }}
+        </option>
+      @endforeach
+    </select>
+    @if($product->id)
+      <input type="hidden" name="type" value="{{ old('type', $product->type ?? 'normal') }}">
+    @endif
+    <div class="mt-2 text-muted small">
+      <i class="bi bi-info-circle me-1"></i>{{ __('panel/product.type_hint') }}
+    </div>
+  </div>
+
+  <div class="mb-3 col-12 col-md-6">
+    <div class="mb-1 fs-6">{{ __('panel/product.name') }}</div>
+    <x-common-form-locale-input
+      name="name"
+      :translations="locale_field_data($product, 'name')"
+      type="input"
+      :required="true"
+      :label="__('panel/product.name')"
+      :placeholder="__('panel/product.name')"
+    />
+    <div class="mt-1 text-muted small">
+      <i class="bi bi-info-circle me-1"></i>{{ __('panel/product.name_required_hint') }}
+    </div>
+  </div>
+
+  <x-common-form-images title="{{ __('common/base.image') }}" name="images"
+                        :values="old('images', $product->images ?? [])"/>
+
+  <x-common-form-image title="{{ __('panel/product.hover_image') }}" name="hover_image"
+                       :value="old('hover_image', $product->hover_image ?? '')"
+                       :description="__('panel/product.hover_image_help')"/>
+
+  @include('panel::products.form._form_video')
+
+  <div class="row mt-5 mb-4">
+    <div class="col-12">
+      <div class="d-flex align-items-center gap-3 mb-3" id="spec-type-group">
+        <div class="spec-type-segmented" role="group" aria-label="{{ __('panel/product.multi_variant') }}">
+          <button type="button" class="spec-type-btn" data-value="single">
+            {{ __('panel/product.price_type_single') }}
+          </button>
+          <button type="button" class="spec-type-btn" data-value="multiple">
+            {{ __('panel/product.price_type_multiple') }}
+          </button>
+        </div>
+        <input type="hidden" name="price_type" value="{{ $product->isMultiple() ? 'multiple' : 'single' }}">
+      </div>
+
+      <div id="single_price_box" class="{{ $product->isMultiple() ? 'd-none' : '' }}">
+        <div class="row">
+          <div class="col-12 col-md-3">
+            <x-common-form-input :title="__('panel/product.price')" name="skus[0][price]"
+                               value="{{ old('skus.0.price', $product->masterSku->price ?? '') }}" required/>
+          </div>
+          <div class="col-12 col-md-3">
+            <x-common-form-input :title="__('panel/product.quantity')" name="skus[0][quantity]"
+                               value="{{ old('skus.0.quantity', $product->masterSku->quantity ?? '') }}" required/>
+          </div>
+          <div class="col-12 col-md-3">
+            <x-common-form-input :title="__('panel/product.sku_code')" name="skus[0][code]"
+                               value="{{ old('skus.0.code', $product->masterSku->code ?? '') }}" required/>
+          </div>
+          <div class="col-12 col-md-3">
+            <x-common-form-input :title="__('panel/product.origin_price')" name="skus[0][origin_price]"
+                               value="{{ old('skus.0.origin_price', $product->masterSku->origin_price ?? '') }}"/>
+          </div>
+          <input type="hidden" name="skus[0][model]" value="">
+          <input type="hidden" name="skus[0][is_default]" value="1">
+        </div>
+        <div class="row mt-3">
+          <div class="col-12 col-md-3">
+            <x-common-form-input :title="__('panel/product.weight') . ' (' . ($product->weight_class ?: system_setting('weight_class', 'kg')) . ')'" name="skus[0][weight]"
+                               value="{{ old('skus.0.weight', $product->masterSku->weight ?? '') }}"/>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Variant -->
+      <div id="specifications_box" class="{{ !$product->isMultiple() ? 'd-none' : '' }}">
+        @include('panel::products.form._form_variant')
+        @hookinsert('panel.product.edit.form_variant.after')
+      </div>
+    </div>
+  </div>
+
+  <x-common-form-switch-radio :title="__('common/base.status')" name="active"
+                              :value="old('active', $product->active ?? true)"/>
+  @hookinsert('panel.product.edit.basic.after')
+</div>
