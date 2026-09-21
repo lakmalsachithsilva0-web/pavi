@@ -1,138 +1,166 @@
-<p align="center">
-    <a href="https://www.innoshop.com"><img src="https://www.innoshop.com/images/logo.png" alt="Total Downloads"></a>
-</p>
+# Pavi Creations | Dambulla
+
+Customized e-commerce website based on **InnoShop** (Laravel) for **Pavi Creations | Dambulla**.
+
+- Wholesale & Retail Fashion Store  
+- Location: Dambulla, Sri Lanka  
+- Phone: +94 77 986 2343  
 
 ---
 
-<p align="center">
-    <a href="https://www.innoshop.com"><img src="https://img.shields.io/badge/License-OSL%203.0-green.svg" alt="Total Downloads"></a>
-    <a href="https://www.php.net"><img src="https://img.shields.io/badge/Language-PHP%208.3-blue.svg" alt="Total Downloads"></a>
-    <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-13-orange" alt="Total Downloads"></a>
-</p>
+## Prerequisites (What you need to install first)
 
+Before running the project, install these on your computer:
 
-<p align="center">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/sa.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/de.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/us.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/es.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/fr.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/id.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/it.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/jp.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/kh.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/kr.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/my.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/nl.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/pt.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/br.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/ru.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/th.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/tr.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/vn.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/cn.svg">
-    <img class="flag-img" width="32px" height="24px" src="https://flagicons.lipis.dev/flags/4x3/hk.svg">
-</p>
+| Software       | Minimum Version | Download / Install                          |
+|----------------|-----------------|---------------------------------------------|
+| PHP            | 8.3+            | https://windows.php.net or use XAMPP/Laragon |
+| Composer       | 2.x             | https://getcomposer.org                     |
+| Node.js + npm  | 18+ / 9+        | https://nodejs.org                          |
+| MySQL          | 5.7+ or 8.0+    | Included in XAMPP / Laragon / MySQL Server  |
+| Git            | Latest          | https://git-scm.com                         |
 
+**Recommended for Windows beginners:**  
+Install **Laragon** (includes PHP, MySQL, Composer, Node) → https://laragon.org
 
-# InnoShop
-InnoShop - Innovative Open Source E-commerce System.
+### Required PHP Extensions
+Make sure these are enabled:
+- bcmath, curl, dom, fileinfo, libxml, openssl, pdo, pdo_mysql, simplexml, mbstring, tokenizer, xml, ctype, json
 
-InnoShop is an Open Source eCommerce System based on Laravel 13, supporting multiple languages, multiple currencies, integrated with multiple AI models and native MCP (Model Context Protocol) for intelligent automation, and featuring plugin mechanisms and theme template development for enhanced user experience and system extensibility.
+---
 
-## Quick Start
+## How to Run Locally (Step-by-step)
 
-### Requirements
-- PHP >= 8.3 with extensions: bcmath, cURL, dom, fileinfo, libxml, OpenSSL, PDO, simplexml
-- Composer 2.x
-- Node.js >= 18 with npm 9+
-- MySQL 5.7+ / 8.0+ (or SQLite for local try-out)
-
-### Option 1: Composer (Recommended)
+### 1. Clone the customized branch
 
 ```bash
-composer create-project innoshop/innoshop
-cd innoshop
-php artisan serve
+git clone -b feature/pavi-creations https://github.com/lakmalsachithsilva0-web/pavi.git
+cd pavi
 ```
 
-The create-project command automatically:
-1. Installs PHP dependencies
-2. Generates the application key
-3. Runs `npm install` and `npm run build` to compile front-end assets
-
-Open http://localhost:8000 in your browser, the installation wizard will guide you through database setup and admin account creation.
-
-### Option 2: Download ZIP (No Node.js Required)
-
-Grab the latest `innoshop-vX.Y.Z.zip` from **GitHub Releases** — it ships with PHP dependencies and compiled front-end assets pre-packaged, so you only need PHP on the server:
-
-- GitHub Releases: <https://github.com/innocommerce/innoshop/releases>
-- Official Site: <https://www.innoshop.com>
+### 2. Install PHP dependencies
 
 ```bash
-unzip innoshop-vX.Y.Z.zip -d innoshop
-cd innoshop
-chmod -R 775 storage bootstrap/cache
-php artisan serve
-```
-
-Open the site URL in your browser and follow the installation wizard to configure the database and admin account.
-
-### Option 3: Git Clone (For Contributors)
-
-```bash
-git clone https://github.com/innocommerce/innoshop.git
-cd innoshop
 composer install
+```
+
+### 3. Install Node.js dependencies and build assets
+
+```bash
 npm install
 npm run build
+```
+
+### 4. Setup environment file
+
+```bash
 cp .env.example .env
+```
+
+Then open the `.env` file and update these important values:
+
+```env
+APP_NAME="Pavi Creations"
+APP_URL=http://localhost:8000
+
+DB_DATABASE=pavi_creations
+DB_USERNAME=root
+DB_PASSWORD=          # put your MySQL password here (leave empty if none)
+
+MAIL_FROM_ADDRESS="info@pavicreations.lk"
+```
+
+### 5. Generate application key
+
+```bash
 php artisan key:generate
+```
+
+### 6. Create the database
+
+Open phpMyAdmin or MySQL terminal and create a database:
+
+```sql
+CREATE DATABASE pavi_creations CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 7. Run migrations and seeders (this creates tables + default data)
+
+```bash
+php artisan migrate --seed
+```
+
+### 8. Create storage link (for images)
+
+```bash
+php artisan storage:link
+```
+
+### 9. Start the local server
+
+```bash
 php artisan serve
 ```
 
-## Introduction
-- A globally oriented open source e-commerce system, a culmination of 15 years of continuous industry development.
-- User-friendly, intuitive interface, quick to get started, responsive design.
-- Based on the latest technology, deeply integrated with AI and native MCP (Model Context Protocol) support, multi-language and multi-currency features.
-- Highly cohesive, low coupling modular design, making it simple and convenient for rapid plugin development.
+Now open in your browser:
 
-## Documentation
-- https://docs.innoshop.cn/en
-- http://front-api.innoshop.cn
-- http://panel-api.innoshop.cn
+- **Frontend (Customer website):** http://localhost:8000  
+- **Admin Panel:** http://localhost:8000/panel  
 
-## Demo Site
-- Frontend: https://demo.innoshop.cn
-- Backend: https://demo.innoshop.cn/panel
-- Account: admin@innoshop.com
-- Password: 123456
+### Default Admin Login
 
-### Frontend Screenshot
-<p align="center">
-    <a href="https://www.innoshop.cn"  target="_blank">
-        <img src="https://www.innoshop.cn/images/readme/front.jpg?v"  alt="Front">
-    </a>
-</p>
+- **Email:** `admin@innoshop.com`  
+- **Password:** `123456`
 
-### Backend Screenshot
-<p align="center">
-    <a href="https://www.innoshop.com"  target="_blank">
-        <img src="https://www.innoshop.cn/images/readme/panel.jpg?v"  alt="Panel">
-    </a>
-</p>
+(You can change this later inside the admin panel)
 
-- If you find `InnoShop` helpful, please do not hesitate to give us a star.
-- Every like from you is the driving force for our continuous improvement.
+---
 
-## Contributors
+## Important Environment Variables You Should Update
 
-Thanks to the [Contributors](https://github.com/innocommerce/innoshop/graphs/contributors)
+| Variable              | Description                              | Example Value                  |
+|-----------------------|------------------------------------------|--------------------------------|
+| `APP_NAME`            | Store name                               | `Pavi Creations`               |
+| `APP_URL`             | Your local or live website URL           | `http://localhost:8000`        |
+| `APP_TIMEZONE`        | Timezone                                 | `Asia/Colombo`                 |
+| `DB_DATABASE`         | Database name                            | `pavi_creations`               |
+| `DB_USERNAME`         | MySQL username                           | `root`                         |
+| `DB_PASSWORD`         | MySQL password                           | (your password)                |
+| `MAIL_FROM_ADDRESS`   | Email used for system emails             | `info@pavicreations.lk`        |
+| `MAIL_FROM_NAME`      | Email sender name                        | `Pavi Creations`               |
 
-<a href="https://github.com/yushine"><img class="avatar-img" width="32px" height="32px" src="https://github.com/yushine.png"/></a>
-<a href="https://github.com/liuweixxx"><img class="avatar-img" width="32px" height="32px" src="https://github.com/liuweixxx.png"/></a>
-<a href="https://github.com/qxsclass"><img class="avatar-img" width="32px" height="32px" src="https://github.com/qxsclass.png"/></a>
-<a href="https://github.com/NeftaliYagua"><img class="avatar-img" width="32px" height="32px" src="https://github.com/NeftaliYagua.png"/></a>
-<a href="https://github.com/lunan689"><img class="avatar-img" width="32px" height="32px" src="https://github.com/lunan689.png"/></a>
-<a href="https://github.com/LOLU66"><img class="avatar-img" width="32px" height="32px" src="https://github.com/LOLU66.png"/></a>
+Most other store settings (currency = LKR, phone number, address, SEO texts) are already customized in the database seeders.
+
+---
+
+## After Installation – What to do next
+
+1. Login to Admin Panel → http://localhost:8000/panel
+2. Go to **Products** and start adding your real products from Facebook
+3. Upload your own logo (Settings → System)
+4. Change admin email/password
+5. Configure payment methods if needed
+
+---
+
+## Useful Commands
+
+```bash
+# Clear cache
+php artisan optimize:clear
+
+# Re-run seeders only (careful - may reset data)
+php artisan db:seed
+
+# Create a new admin user (if needed)
+php artisan tinker
+```
+
+---
+
+## Branch Information
+
+- Customization branch: `feature/pavi-creations`
+- Base system: InnoShop (Laravel 13)
+
+After testing, you can create a Pull Request from `feature/pavi-creations` → `main`.
