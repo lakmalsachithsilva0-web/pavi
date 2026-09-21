@@ -5,6 +5,8 @@
  * @link       https://www.innoshop.com
  * @author     InnoShop <team@innoshop.com>
  * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ *
+ * Customized for Pavi Creations | Dambulla
  */
 
 namespace Database\Seeders;
@@ -32,9 +34,9 @@ class AdminSeeder extends Seeder
     {
         return [
             [
-                'name'     => 'admin',
-                'email'    => 'admin@innoshop.com',
-                'password' => '$2y$10$tsjDyAkcFU0qWuJpo3pAae/6PwtQi/AhSR4giHqmjehTJb4B0W0fi',
+                'name'     => 'Lakmal',
+                'email'    => 'lakmalsachithsilva0@gmail.com',
+                'password' => '$2y$10$2TbHLtUHgaryjTM4RsvG0uuBNmhSpPgy.trIBm5EHfu/9fOPllp1u', // Ux3@f=7x2
                 'active'   => true,
                 'locale'   => 'en',
             ],
