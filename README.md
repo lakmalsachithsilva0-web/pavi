@@ -8,159 +8,120 @@ Customized e-commerce website based on **InnoShop** (Laravel) for **Pavi Creatio
 
 ---
 
-## Prerequisites (What you need to install first)
+## Prerequisites (Install these first)
 
-Before running the project, install these on your computer:
+| Software       | Minimum Version | Recommendation                     |
+|----------------|-----------------|------------------------------------|
+| PHP            | 8.3+            | Laragon (easiest on Windows)      |
+| Composer       | 2.x             | Comes with Laragon                |
+| Node.js + npm  | 18+ / 9+        | Comes with Laragon                |
+| MySQL          | 5.7+ / 8.0+     | Comes with Laragon / XAMPP        |
+| Git            | Latest          | https://git-scm.com               |
 
-| Software       | Minimum Version | Download / Install                          |
-|----------------|-----------------|---------------------------------------------|
-| PHP            | 8.3+            | https://windows.php.net or use XAMPP/Laragon |
-| Composer       | 2.x             | https://getcomposer.org                     |
-| Node.js + npm  | 18+ / 9+        | https://nodejs.org                          |
-| MySQL          | 5.7+ or 8.0+    | Included in XAMPP / Laragon / MySQL Server  |
-| Git            | Latest          | https://git-scm.com                         |
+**Recommended:** Install **Laragon** → https://laragon.org
 
-**Recommended for Windows beginners:**  
-Install **Laragon** (includes PHP, MySQL, Composer, Node) → https://laragon.org
-
-### Required PHP Extensions
-Make sure these are enabled:
-- bcmath, curl, dom, fileinfo, libxml, openssl, pdo, pdo_mysql, simplexml, mbstring, tokenizer, xml, ctype, json
+Required PHP extensions: bcmath, curl, dom, fileinfo, libxml, openssl, pdo, pdo_mysql, simplexml, mbstring, tokenizer, xml, ctype, json
 
 ---
 
-## How to Run Locally (Step-by-step)
+## How to Run Locally (Simple Way)
 
-### 1. Clone the customized branch
+### 1. Pull latest code
 
 ```bash
-git clone -b feature/pavi-creations https://github.com/lakmalsachithsilva0-web/pavi.git
-cd pavi
+git pull origin feature/pavi-creations
 ```
 
-### 2. Install PHP dependencies
+### 2. Install dependencies (only first time or after major updates)
 
 ```bash
 composer install
-```
-
-### 3. Install Node.js dependencies and build assets
-
-```bash
 npm install
 npm run build
 ```
 
-### 4. Setup environment file
+### 3. Setup .env file (only first time)
 
 ```bash
 cp .env.example .env
-```
-
-Then open the `.env` file and update these important values:
-
-```env
-APP_NAME="Pavi Creations"
-APP_URL=http://localhost:8000
-
-DB_DATABASE=pavi_creations
-DB_USERNAME=root
-DB_PASSWORD=          # put your MySQL password here (leave empty if none)
-
-MAIL_FROM_ADDRESS="info@pavicreations.lk"
-```
-
-### 5. Generate application key
-
-```bash
 php artisan key:generate
 ```
 
-### 6. Create the database
+Open `.env` and set your database password if needed:
 
-Open phpMyAdmin or MySQL terminal and create a database:
-
-```sql
-CREATE DATABASE pavi_creations CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```env
+DB_DATABASE=pavi_creations
+DB_USERNAME=root
+DB_PASSWORD=          # your MySQL password (leave empty if none)
 ```
 
-### 7. Run migrations and seeders (this creates tables + default data)
+### 4. One-command Database Setup (Auto create DB + migrate + seed)
 
 ```bash
-php artisan migrate --seed
+php artisan pavi:setup
 ```
 
-### 8. Create storage link (for images)
+This single command will:
+- Create the database `pavi_creations` if it does not exist
+- Run all migrations
+- Run all seeders (including admin user, currencies, settings, demo data)
+- Create storage link for images
+
+If you want to completely reset everything (delete all data and start fresh):
 
 ```bash
-php artisan storage:link
+php artisan pavi:setup --fresh
 ```
 
-### 9. Start the local server
+### 5. Start the server
 
 ```bash
 php artisan serve
 ```
 
-Now open in your browser:
+---
 
-- **Frontend (Customer website):** http://localhost:8000  
-- **Admin Panel:** http://localhost:8000/panel  
+## Access the Website
 
-### Default Admin Login
+| Type              | URL                          |
+|-------------------|------------------------------|
+| Frontend (Shop)   | http://localhost:8000        |
+| Admin Panel       | http://localhost:8000/panel  |
 
-- **Email:** `admin@innoshop.com`  
-- **Password:** `123456`
+### Admin Login
 
-(You can change this later inside the admin panel)
+- **Email:** `lakmalsachithsilva0@gmail.com`
+- **Password:** `Ux3@f=7x2`
 
 ---
 
-## Important Environment Variables You Should Update
+## Important Notes
 
-| Variable              | Description                              | Example Value                  |
-|-----------------------|------------------------------------------|--------------------------------|
-| `APP_NAME`            | Store name                               | `Pavi Creations`               |
-| `APP_URL`             | Your local or live website URL           | `http://localhost:8000`        |
-| `APP_TIMEZONE`        | Timezone                                 | `Asia/Colombo`                 |
-| `DB_DATABASE`         | Database name                            | `pavi_creations`               |
-| `DB_USERNAME`         | MySQL username                           | `root`                         |
-| `DB_PASSWORD`         | MySQL password                           | (your password)                |
-| `MAIL_FROM_ADDRESS`   | Email used for system emails             | `info@pavicreations.lk`        |
-| `MAIL_FROM_NAME`      | Email sender name                        | `Pavi Creations`               |
-
-Most other store settings (currency = LKR, phone number, address, SEO texts) are already customized in the database seeders.
-
----
-
-## After Installation – What to do next
-
-1. Login to Admin Panel → http://localhost:8000/panel
-2. Go to **Products** and start adding your real products from Facebook
-3. Upload your own logo (Settings → System)
-4. Change admin email/password
-5. Configure payment methods if needed
+- Frontend and Backend run together with one command: `php artisan serve`
+- There is **no separate frontend server** needed after `npm run build`
+- If you change Vue/JS/CSS files later, run `npm run build` again (or `npm run dev` for live reload)
 
 ---
 
 ## Useful Commands
 
 ```bash
-# Clear cache
+# Start server
+php artisan serve
+
+# Full setup / reset database
+php artisan pavi:setup
+php artisan pavi:setup --fresh
+
+# Clear all caches
 php artisan optimize:clear
 
-# Re-run seeders only (careful - may reset data)
-php artisan db:seed
-
-# Create a new admin user (if needed)
-php artisan tinker
+# Rebuild frontend assets
+npm run build
 ```
 
 ---
 
-## Branch Information
+## Branch
 
-- Customization branch: `feature/pavi-creations`
-- Base system: InnoShop (Laravel 13)
-
-After testing, you can create a Pull Request from `feature/pavi-creations` → `main`.
+Customization branch: `feature/pavi-creations`
