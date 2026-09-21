@@ -5,6 +5,8 @@
  * @link       https://www.innoshop.com
  * @author     InnoShop <team@innoshop.com>
  * @license    https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
+ *
+ * Customized for Pavi Creations | Dambulla
  */
 
 namespace Database\Seeders;
@@ -41,15 +43,15 @@ class SettingSeeder extends BaseSeeder
             ['space' => 'system', 'name' => 'panel_icon_logo', 'value' => 'images/logo-mini.png'],
             ['space' => 'system', 'name' => 'placeholder', 'value' => 'images/placeholder.png'],
             ['space' => 'system', 'name' => 'favicon', 'value' => 'images/favicon.png'],
-            ['space' => 'system', 'name' => 'country_code', 'value' => 'US'],
-            ['space' => 'system', 'name' => 'state_code', 'value' => 'CA'],
+            ['space' => 'system', 'name' => 'country_code', 'value' => 'LK'],
+            ['space' => 'system', 'name' => 'state_code', 'value' => ''],
             ['space' => 'system', 'name' => 'front_locale', 'value' => 'en'],
             ['space' => 'system', 'name' => 'expand', 'value' => '0'],
             ['space' => 'system', 'name' => 'api_docs_enabled', 'value' => '1'],
-            ['space' => 'system', 'name' => 'address', 'value' => 'TF Software Park'],
-            ['space' => 'system', 'name' => 'telephone', 'value' => '13688886666'],
-            ['space' => 'system', 'name' => 'email', 'value' => 'team@innoshop.com'],
-            ['space' => 'system', 'name' => 'currency', 'value' => 'usd'],
+            ['space' => 'system', 'name' => 'address', 'value' => 'Dambulla, Sri Lanka'],
+            ['space' => 'system', 'name' => 'telephone', 'value' => '+94 77 986 2343'],
+            ['space' => 'system', 'name' => 'email', 'value' => 'info@pavicreations.lk'],
+            ['space' => 'system', 'name' => 'currency', 'value' => 'lkr'],
             ['space' => 'system', 'name' => 'menu_header_categories', 'value' => ['1', '4', '10', '16']],
             ['space' => 'system', 'name' => 'home_categories', 'value' => ['1', '4', '7', '10', '13', '16']],
             ['space' => 'system', 'name' => 'menu_header_pages', 'value' => ['3']],
@@ -61,32 +63,32 @@ class SettingSeeder extends BaseSeeder
                 'space' => 'system',
                 'name'  => 'meta_title',
                 'value' => [
-                    'zh-cn' => 'InnoShop - 创新开源电商系统 - Laravel 11，多语言和多货币支持，基于Hook的强大插件架构电商系统',
-                    'en'    => 'InnoShop - Innovative Open Source E-commerce System - Built on Laravel 11, with multi-language and multi-currency support, a powerful e-commerce system based on a Hook-based plugin architecture.',
+                    'zh-cn' => 'Pavi Creations | Dambulla - Wholesale & Retail Fashion',
+                    'en'    => 'Pavi Creations | Dambulla - Wholesale & Retail Fashion, Clothing & Accessories',
                 ],
             ],
             [
                 'space' => 'system',
                 'name'  => 'meta_keywords',
                 'value' => [
-                    'zh-cn' => 'InnoShop, 创新, 开源, 电子商务, Laravel 11, 多语言, 多货币, Hook, 插件架构, 灵活, 强大',
-                    'en'    => 'InnoShop, Innovation, Open Source, E-commerce, Laravel 11, Multi-language, Multi-currency, Hook, Plugin architecture, Flexible, Powerful',
+                    'zh-cn' => 'Pavi Creations, Dambulla, Fashion, Clothing, Wholesale, Retail',
+                    'en'    => 'Pavi Creations, Dambulla, Fashion, Clothing, Wholesale, Retail, Sri Lanka, Hats, Accessories',
                 ],
             ],
             [
                 'space' => 'system',
                 'name'  => 'meta_description',
                 'value' => [
-                    'zh-cn' => 'InnoShop 是一款创新的开源电子商务平台，基于 Laravel 11 开发，具有多语言和多货币支持的特性。它采用了基于 Hook 的强大而灵活的插件架构，为用户提供了丰富的定制和扩展功能。欢迎体验 InnoShop, 打造属于您自己的电子商务平台！',
-                    'en'    => 'InnoShop is an innovative open-source e-commerce platform developed based on Laravel 11, featuring multi-language and multi-currency support. It adopts a powerful and flexible plugin architecture based on Hooks, providing users with a wealth of customization and extension capabilities. Welcome to experience InnoShop and create your own e-commerce platform!',
+                    'zh-cn' => 'Pavi Creations | Dambulla - Your trusted source for wholesale and retail fashion, clothing and accessories in Sri Lanka.',
+                    'en'    => 'Pavi Creations | Dambulla - Wholesale & Retail fashion store in Dambulla, Sri Lanka. Quality clothing, hats, accessories and more. Online shopping available.',
                 ],
             ],
             [
                 'space' => 'system',
                 'name'  => 'store_description',
                 'value' => [
-                    'zh-cn' => 'InnoShop 是一款创新的开源电子商务平台，基于 Laravel 11 开发，具有多语言和多货币支持的特性。它采用了基于 Hook 的强大而灵活的插件架构，为用户提供了丰富的定制和扩展功能。欢迎体验 InnoShop, 打造属于您自己的电子商务平台！',
-                    'en'    => 'InnoShop is an innovative open-source e-commerce platform developed based on Laravel 11, featuring multi-language and multi-currency support. It adopts a powerful and flexible plugin architecture based on Hooks, providing users with a wealth of customization and extension capabilities. Welcome to experience InnoShop and create your own e-commerce platform!',
+                    'zh-cn' => 'Pavi Creations is a wholesale and retail fashion store based in Dambulla, Sri Lanka. We offer quality clothing, accessories and more.',
+                    'en'    => 'Pavi Creations is a wholesale and retail fashion store based in Dambulla, Sri Lanka. We specialize in quality clothing, hats, accessories and fashion items for online and offline customers.',
                 ],
             ],
             [
@@ -99,14 +101,14 @@ class SettingSeeder extends BaseSeeder
                             'zh-cn' => 'images/demo/banner/hero-1.webp',
                         ],
                         'title' => [
-                            'en'    => 'New Season Arrivals',
-                            'zh-cn' => '新品上市',
+                            'en'    => 'Welcome to Pavi Creations',
+                            'zh-cn' => 'Welcome to Pavi Creations',
                         ],
                         'subtitle' => [
-                            'en'    => 'Discover the latest trends in women\'s fashion',
-                            'zh-cn' => '探索女装最新潮流',
+                            'en'    => 'Wholesale & Retail Fashion in Dambulla',
+                            'zh-cn' => 'Wholesale & Retail Fashion in Dambulla',
                         ],
-                        'link' => '/en/category-women-clothing',
+                        'link' => '/en/products',
                     ],
                     [
                         'image' => [
@@ -114,14 +116,14 @@ class SettingSeeder extends BaseSeeder
                             'zh-cn' => 'images/demo/banner/hero-2.webp',
                         ],
                         'title' => [
-                            'en'    => 'Men\'s Collection',
-                            'zh-cn' => '男装系列',
+                            'en'    => 'New Arrivals',
+                            'zh-cn' => 'New Arrivals',
                         ],
                         'subtitle' => [
-                            'en'    => 'Elevate your style with premium menswear',
-                            'zh-cn' => '精品男装，提升你的品味',
+                            'en'    => 'Discover the latest fashion trends',
+                            'zh-cn' => 'Discover the latest fashion trends',
                         ],
-                        'link' => '/en/category-men-clothing',
+                        'link' => '/en/products',
                     ],
                 ],
             ],
